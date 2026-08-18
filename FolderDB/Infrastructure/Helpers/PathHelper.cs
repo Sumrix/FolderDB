@@ -1,9 +1,6 @@
 using System;
-using System.Buffers.Binary;
-using System.Buffers.Text;
 using System.IO;
 using System.Security;
-using NeoSmart.Hashing.XXHash;
 
 namespace FolderDB.Infrastructure.Helpers;
 
@@ -13,21 +10,6 @@ public static class PathHelper
         OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     private static readonly char[] InvalidChars = Path.GetInvalidFileNameChars();
-
-    public static string PathId(string path)
-    {
-        uint h = XXHash32.Hash(System.Text.Encoding.UTF8.GetBytes(path));
-
-        Span<byte> raw = stackalloc byte[4];
-        BinaryPrimitives.WriteUInt32BigEndian(raw, h);
-
-        // 4 bytes -> 8 base64 chars with padding; trim '=' -> 6 chars total.
-        Span<byte> b64 = stackalloc byte[8];
-        Base64.EncodeToUtf8(raw, b64, out _, out int written);
-        string s = System.Text.Encoding.ASCII.GetString(b64[..written]).TrimEnd('=');
-
-        return s; // 6 chars
-    }
 
     public static string SanitizeFileName(string name)
     {
