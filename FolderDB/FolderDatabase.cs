@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using FolderDB.FileStorage;
 using FolderDB.Infrastructure.Helpers;
-using FolderDB.Infrastructure.Logging;
 using FolderDB.Infrastructure.Watching;
 using FolderDB.Retry;
 using FolderDB.Runtime;
@@ -14,178 +13,124 @@ using Microsoft.Extensions.Logging;
 
 namespace FolderDB;
 
-public class FolderDatabase : IAsyncDisposable
+public class FolderDatabase : IDatabase
 {
-    private readonly string _rootPath;
-    private readonly DatabaseOptions _options;
-    private readonly IReadOnlyList<ITableDefinition> _tableDefinitions;
-    private readonly ILogger<FolderDatabase> _logger;
-    private readonly IFileStore _fileStore;
-    private readonly IRetryScheduler<string> _retryScheduler;
+    private readonly DatabaseResources _resources;
+    private readonly IReadOnlyDictionary<Type, ITableEngine> _tableEnginesByType;
+    private readonly IReadOnlyDictionary<string, ITableEngine> _tableEnginesByDirectoryName;
+    private readonly PathWatcher _rootPathWatcher;
 
-    private readonly Dictionary<Type, ITableEngine> _tableEnginesByType;
-    private readonly Dictionary<string, ITableEngine> _tableEnginesByDirectoryName;
-    private PathWatcher? _rootPathWatcher;
+    private bool _disposed;
 
-    private bool _disposed = false;
+    public string RootPath { get; }
+
+    // Internal because a FolderDatabase exists only as a running database.
+    // Making it public would allow creating one in a non-running state.
+    internal FolderDatabase(
+        string rootPath,
+        DatabaseResources resources,
+        IReadOnlyDictionary<Type, ITableEngine> tableEnginesByType,
+        IReadOnlyDictionary<string, ITableEngine> tableEnginesByDirectoryName,
+        PathWatcher rootPathWatcher)
+    {
+        RootPath = rootPath;
+        _resources = resources;
+        _tableEnginesByType = tableEnginesByType;
+        _tableEnginesByDirectoryName = tableEnginesByDirectoryName;
+        _rootPathWatcher = rootPathWatcher;
+
+        // Wired last: the handlers read the fields above, and enabling the watcher can raise an
+        // event before this constructor returns.
+        _rootPathWatcher.Changed += (_, path) => HandleRootDirectoryChange(path);
+        _rootPathWatcher.Error += (_, _) => RequestAllDirectoriesReconcile();
+        _rootPathWatcher.EnableRaisingEvents = true;
+    }
 
     /// <exception cref="ArgumentNullException">The path is null.</exception>
     /// <exception cref="ArgumentException">The system could not retrieve the absolute path.</exception>
     /// <exception cref="SecurityException">The caller does not have the required permissions.</exception>
     /// <exception cref="NotSupportedException">The path contains a format that is not supported.</exception>
     /// <exception cref="PathTooLongException">The specified path, file name, or both exceed the system-defined maximum length.</exception>
-    public static async Task<FolderDatabase> StartAsync(
-        string rootPath,
+    public static Task<FolderDatabase> StartAsync(
+        string path,
         IReadOnlyList<ITableDefinition> tableDefinitions,
-        DatabaseOptions? options = null)
+        DatabaseOptions? options = null,
+        CancellationToken cancellationToken = default)
     {
-        options ??= new DatabaseOptions();
-
-        var logger = options.LoggerFactory.CreateLogger<FolderDatabase>();
-        using var _ = logger.BeginMethodScope();
-
-        logger.LogTrace("Starting: path=\"{RootPath}\" options={@Options}", rootPath, options);
-
-        var services = CreateServices(options);
-
-        rootPath = PathHelper.NormalizePath(rootPath);
-        var db = new FolderDatabase(
-            rootPath,
-            options,
-            tableDefinitions,
-            services.FileStore,
-            services.RetryScheduler,
-            logger);
-
-        try
-        {
-            await db.StartImpl();
-
-            logger.LogDebug("Started: path=\"{RootPath}\"", rootPath);
-
-            return db;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to start FolderDatabase: path=\"{RootPath}\"", rootPath);
-            await db.DisposeAsync();
-            throw;
-        }
+        return DatabaseFactory.StartDatabaseAsync(path, tableDefinitions, options, cancellationToken);
     }
 
-    private FolderDatabase(
-        string rootPath,
-        DatabaseOptions options,
-        IReadOnlyList<ITableDefinition> tableDefinitions,
-        IFileStore fileStore,
-        IRetryScheduler<string> retryScheduler,
-        ILogger<FolderDatabase> logger)
+    public static async Task<IFolderTable<TKey, TRecord>> StartTableAsync<TKey, TRecord>(
+        string path,
+        TableDefinition<TKey, TRecord, NoProjection> definition,
+        DatabaseOptions? options = null,
+        CancellationToken cancellationToken = default)
+        where TRecord : class, IRecord<TKey>
+        where TKey : notnull
     {
-        _rootPath = rootPath;
-        _options = options;
-        _tableDefinitions = tableDefinitions;
-        _fileStore = fileStore;
-        _retryScheduler = retryScheduler;
-        _logger = logger;
-        _tableEnginesByType = new();
-        _tableEnginesByDirectoryName = new(PathHelper.OSDependedPathComparer);
+        return await DatabaseFactory.StartTableAsync(path, definition, options, cancellationToken);
     }
 
-
-    // TODO: Find all the possible exceptions
-    private async Task StartImpl()
+    public static async Task<IFolderIndexedTable<TKey, TRecord, TProjection>> StartIndexedTableAsync<TKey, TRecord, TProjection>(
+        string path,
+        TableDefinition<TKey, TRecord, TProjection> definition,
+        DatabaseOptions? options = null,
+        CancellationToken cancellationToken = default)
+        where TRecord : class, IRecord<TKey>
+        where TKey : notnull
     {
-        Directory.CreateDirectory(_rootPath);
-        var indicesPath = Path.Combine(_rootPath, ".indices");
-        Directory.CreateDirectory(indicesPath);
-
-        foreach (var tableDefinition in _tableDefinitions)
-        {
-            var directoryName = PathHelper.SanitizeFileName(tableDefinition.Name);
-            var tablePath = Path.Combine(_rootPath, directoryName);
-            var indexFilePath = Path.Combine(indicesPath, $"{directoryName}.index.json");
-            Directory.CreateDirectory(tablePath);
-
-            var tableLoggerFactory = _options.LoggerFactory.CreateTableScopedLoggerFactory(tableDefinition.Name);
-
-            var tableEngine = await tableDefinition.StartEngineAsync(
-                tablePath,
-                indexFilePath,
-                _fileStore,
-                _retryScheduler,
-                _options,
-                tableLoggerFactory);
-
-            if (!_tableEnginesByType.TryAdd(tableDefinition.RecordType, tableEngine))
-            {
-                throw new InvalidOperationException(
-                    $"Multiple tables with the same record type detected: '{tableDefinition.RecordType.FullName}'.");
-            }
-            if (!_tableEnginesByDirectoryName.TryAdd(directoryName, tableEngine))
-            {
-                throw new InvalidOperationException(
-                    $"Directory name collision detected after sanitizing table names: '{directoryName}'.");
-            }
-        }
-
-        _rootPathWatcher = new PathWatcher(
-            _rootPath,
-            logger: _options.LoggerFactory.CreateLogger<PathWatcher>());
-        _rootPathWatcher.Changed += (_, path) => HandleRootDirectoryChange(path);
-        _rootPathWatcher.Error += (_, _) => RequestAllDirectoriesReconcile();
-        _rootPathWatcher.EnableRaisingEvents = true;
+        return await DatabaseFactory.StartTableAsync(path, definition, options, cancellationToken);
     }
 
     public static IRetryScheduler<string> CreateDefaultRetryScheduler(
-        DefaultRetrySchedulerOptions? options,
-        ILoggerFactory loggerFactory)
+        DefaultRetrySchedulerOptions? options = null,
+        ILoggerFactory? loggerFactory = null)
     {
-        var effectiveOptions = options ?? new DefaultRetrySchedulerOptions();
-
-        return new TimeBucketQueueManager(
-            intervalMs: effectiveOptions.IntervalMs,
-            maxRetryIntervals: effectiveOptions.MaxRetryIntervals,
-            backoffMultiplier: effectiveOptions.BackoffMultiplier,
-            valueComparer: PathHelper.OSDependedPathComparer,
-            loggerFactory: loggerFactory);
+        return DatabaseFactory.CreateDefaultRetryScheduler(options, loggerFactory);
     }
 
     public static IFileStore CreateDefaultRetryFileStore(
         IFileStore inner,
-        RetryFileStoreOptions? options,
-        ILoggerFactory loggerFactory)
+        RetryFileStoreOptions? options = null,
+        ILoggerFactory? loggerFactory = null)
     {
+        ArgumentNullException.ThrowIfNull(inner);
+
         return new RetryFileStore(
             inner,
             options,
-            loggerFactory.CreateLogger<RetryFileStore>());
+            loggerFactory?.CreateLogger<RetryFileStore>());
     }
 
     public ITable<TKey, TRecord> Table<TKey, TRecord>()
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        return (ITable<TKey, TRecord>)_tableEnginesByType[typeof(TRecord)];
+        return GetTable<TRecord, ITable<TKey, TRecord>>();
     }
 
     public IIndexedTable<TKey, TRecord, TProjection> IndexedTable<TKey, TRecord, TProjection>()
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        return (IIndexedTable<TKey, TRecord, TProjection>)_tableEnginesByType[typeof(TRecord)];
+        return GetTable<TRecord, IIndexedTable<TKey, TRecord, TProjection>>();
     }
 
     public async Task FlushAsync(CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ThrowIfDisposed();
 
         foreach (var tableEngine in _tableEnginesByType.Values)
         {
             ct.ThrowIfCancellationRequested();
             await tableEngine.FlushAsync(ct);
         }
+    }
+
+    public void RequestRescan()
+    {
+        ThrowIfDisposed();
+        RequestAllDirectoriesReconcile();
     }
 
     public async ValueTask DisposeAsync()
@@ -198,10 +143,36 @@ public class FolderDatabase : IAsyncDisposable
         foreach (var tableEngine in _tableEnginesByType.Values)
             await DisposeHelper.SafeDispose(tableEngine);
 
-        DisposeHelper.SafeDispose(_retryScheduler);
-        DisposeHelper.SafeDispose(_fileStore as IDisposable);
+        _resources.Dispose();
 
         GC.SuppressFinalize(this);
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+    }
+
+    private TTable GetTable<TRecord, TTable>()
+        where TTable : class
+    {
+        ThrowIfDisposed();
+
+        if (!_tableEnginesByType.TryGetValue(typeof(TRecord), out var tableEngine))
+        {
+            throw new InvalidOperationException(
+                $"No table is defined for record type '{typeof(TRecord)}'. " +
+                $"Pass its table definition to {nameof(FolderDatabase)}.{nameof(StartAsync)}.");
+        }
+
+        if (tableEngine is not TTable table)
+        {
+            throw new InvalidOperationException(
+                $"The table for record type '{typeof(TRecord)}' cannot be accessed as '{typeof(TTable)}'. " +
+                "The requested key or projection type differs from the one the table was defined with.");
+        }
+
+        return table;
     }
 
     private void HandleRootDirectoryChange(string path)
@@ -221,56 +192,6 @@ public class FolderDatabase : IAsyncDisposable
         foreach (var tableEngine in _tableEnginesByDirectoryName.Values)
         {
             tableEngine.RequestDirectoryReconcile();
-        }
-    }
-
-    private static CreatedServices CreateServices(DatabaseOptions options)
-    {
-        IFileStore? fileStore = null;
-
-        try
-        {
-            fileStore = options.FileStoreFactory?.Invoke() ?? new FileStore(
-                options.LoggerFactory.CreateLogger<FileStore>());
-            if (fileStore is null)
-            {
-                throw new InvalidOperationException("The configured file store factory returned null.");
-            }
-
-            var retryScheduler = options.RetrySchedulerFactory is null
-                ? CreateDefaultRetryScheduler(options: null, options.LoggerFactory)
-                : options.RetrySchedulerFactory(options.LoggerFactory);
-            if (retryScheduler is null)
-            {
-                throw new InvalidOperationException("The configured retry scheduler factory returned null.");
-            }
-
-            return new CreatedServices(fileStore, retryScheduler);
-        }
-        catch
-        {
-            DisposeHelper.SafeDispose(fileStore as IDisposable);
-            throw;
-        }
-    }
-
-    private sealed class CreatedServices(IFileStore fileStore, IRetryScheduler<string> retryScheduler) : IDisposable
-    {
-        private bool _disposed;
-
-        public IFileStore FileStore { get; } = fileStore;
-        public IRetryScheduler<string> RetryScheduler { get; } = retryScheduler;
-
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-            DisposeHelper.SafeDispose(RetryScheduler);
-            DisposeHelper.SafeDispose(FileStore as IDisposable);
         }
     }
 }

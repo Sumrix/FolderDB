@@ -36,6 +36,8 @@ public class TableDefinition<TKey, TRecord, TProjection>: ITableDefinition
         ILoggerFactory loggerFactory,
         CancellationToken ct = default)
     {
+        Validate();
+
         return await TableEngine<TKey, TRecord, TProjection>.StartAsync(
             tablePath,
             indexFilePath,
@@ -45,5 +47,23 @@ public class TableDefinition<TKey, TRecord, TProjection>: ITableDefinition
             options,
             loggerFactory,
             ct);
+    }
+
+    internal void Validate()
+    {
+        ThrowIfNull(KeyComparer, nameof(KeyComparer));
+        ThrowIfNull(KeyEqualityComparer, nameof(KeyEqualityComparer));
+        ThrowIfNull(FileNameGenerator, nameof(FileNameGenerator));
+        ThrowIfNull(CreateProjection, nameof(CreateProjection));
+        ThrowIfNull(RecordCodecFactory, nameof(RecordCodecFactory));
+    }
+
+    private void ThrowIfNull(object? member, string memberName)
+    {
+        if (member is null)
+        {
+            throw new InvalidOperationException(
+                $"'{Name}' table's defined {memberName} is null.");
+        }
     }
 }

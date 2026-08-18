@@ -281,6 +281,124 @@ public sealed class FolderDatabaseStartTests
         }
     }
 
+    [Fact]
+    public async Task StartTableAsync_WithoutOptions_StartsUsableTable()
+    {
+        var rootPath = Directory.CreateTempSubdirectory().FullName;
+
+        try
+        {
+            await using var table = await FolderDatabase.StartTableAsync(rootPath, CreateTableDefinition());
+
+            await table.UpsertAsync(new PlainTestRecord("id-1", "value-1"));
+            var record = await table.GetAsync("id-1");
+
+            Assert.Equal("value-1", record?.Value);
+            Assert.True(Directory.Exists(Path.Combine(rootPath, nameof(PlainTestRecord))));
+        }
+        finally
+        {
+            Directory.Delete(rootPath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task StartIndexedTableAsync_WithProjection_ExposesProjectionIndex()
+    {
+        var rootPath = Directory.CreateTempSubdirectory().FullName;
+
+        try
+        {
+            var definition = TableDefinitionBuilder.CreateDefault<string, PlainTestRecord, string>(
+                record => record.Value,
+                TestsJsonContext.Default.Options);
+
+            await using var table = await FolderDatabase.StartIndexedTableAsync(rootPath, definition);
+
+            await table.UpsertAsync(new PlainTestRecord("id-1", "value-1"));
+
+            Assert.Equal("value-1", Assert.Single(table.Index).Value);
+        }
+        finally
+        {
+            Directory.Delete(rootPath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task StartTableAsync_WhenDisposed_DisposesOwnedServices()
+    {
+        var rootPath = Directory.CreateTempSubdirectory().FullName;
+        TrackingRetryScheduler? retryScheduler = null;
+        TrackingFileStore? fileStore = null;
+
+        try
+        {
+            var options = new DatabaseOptions
+            {
+                RetrySchedulerFactory = _ => retryScheduler = new TrackingRetryScheduler(),
+                FileStoreFactory = () => fileStore = new TrackingFileStore()
+            };
+
+            await using (await FolderDatabase.StartTableAsync(rootPath, CreateTableDefinition(), options))
+            {
+            }
+
+            Assert.NotNull(retryScheduler);
+            Assert.True(retryScheduler!.Disposed);
+            Assert.NotNull(fileStore);
+            Assert.True(fileStore!.Disposed);
+        }
+        finally
+        {
+            Directory.Delete(rootPath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task StartTableAsync_WithReservedTableName_Throws()
+    {
+        var rootPath = Directory.CreateTempSubdirectory().FullName;
+
+        try
+        {
+            var definition = TableDefinitionBuilder.CreateDefault<string, PlainTestRecord>(
+                TestsJsonContext.Default.Options,
+                new TableOptions<string, PlainTestRecord> { Name = ".indices" });
+
+            await Assert.ThrowsAsync<ArgumentException>(
+                () => FolderDatabase.StartTableAsync(rootPath, definition));
+        }
+        finally
+        {
+            Directory.Delete(rootPath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task BuilderStartAsync_StartsUsableTable()
+    {
+        var rootPath = Directory.CreateTempSubdirectory().FullName;
+
+        try
+        {
+            await using var table = await TableDefinitionBuilder.Create<string, PlainTestRecord>()
+                .UseJsonRecordCodec(TestsJsonContext.Default.Options)
+                .WithoutProjection()
+                .UseJsonIndexPersistence(TestsJsonContext.Default.Options)
+                .StartAsync(rootPath);
+
+            await table.UpsertAsync(new PlainTestRecord("id-1", "value-1"));
+            var record = await table.GetAsync("id-1");
+
+            Assert.Equal("value-1", record?.Value);
+        }
+        finally
+        {
+            Directory.Delete(rootPath, recursive: true);
+        }
+    }
+
     private static TableDefinition<string, PlainTestRecord, NoProjection> CreateTableDefinition()
     {
         return TableDefinitionBuilder.CreateDefault<string, PlainTestRecord>(
