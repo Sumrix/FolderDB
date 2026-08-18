@@ -20,7 +20,7 @@ public class DatabaseOperationProcessorTests
 {
     private static readonly TableDefinition<string, TestRecord, string> _definition = TableDefinitionBuilder
         .Create<string, TestRecord>()
-        .UseJsonRecordCodec(builder => builder
+        .WithRecordSchema(builder => builder
             .StartWith(1, TestsJsonContext.Default.TestRecord))
         .WithProjection(record => record.Value)
         .UseJsonIndexPersistence(TestsJsonContext.Default.String, TestsJsonContext.Default.String)
@@ -220,7 +220,7 @@ public class DatabaseOperationProcessorTests
         var definition = TableDefinitionBuilder
             .Create<string, TestRecord>()
             .WithFileNaming(ThrowingFileNames)
-            .UseJsonRecordCodec(builder => builder
+            .WithRecordSchema(builder => builder
                 .StartWith(1, TestsJsonContext.Default.TestRecord))
             .WithProjection(record => record.Value)
             .UseJsonIndexPersistence(TestsJsonContext.Default.String, TestsJsonContext.Default.String)

@@ -11,7 +11,9 @@ public static class PathHelper
 {
     public static readonly StringComparer OSDependedPathComparer =
         OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-    
+
+    private static readonly char[] InvalidChars = Path.GetInvalidFileNameChars();
+
     public static string PathId(string path)
     {
         uint h = XXHash32.Hash(System.Text.Encoding.UTF8.GetBytes(path));
@@ -29,14 +31,24 @@ public static class PathHelper
 
     public static string SanitizeFileName(string name)
     {
-        var invalidChars = Path.GetInvalidFileNameChars();
-        if (name.IndexOfAny(invalidChars) < 0) return name;
-
         return string.Create(name.Length, name, (span, original) =>
         {
-            for (int i = 0; i < original.Length; i++)
+            int i = original.Length - 1;
+
+            if (OperatingSystem.IsWindows())
             {
-                span[i] = invalidChars.Contains(original[i]) ? '_' : original[i];
+                for (; i >= 0; i--)
+                {
+                    if (original[i] is not (' ' or '.')) break;
+
+                    span[i] = '_';
+                }
+            }
+
+            for (; i >= 0; i--)
+            {
+                char c = original[i];
+                span[i] = InvalidChars.Contains(c) ? '_' : c;
             }
         });
     }
