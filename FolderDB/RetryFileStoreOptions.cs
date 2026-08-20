@@ -1,3 +1,4 @@
+using System;
 using FolderDB.FileStorage;
 
 namespace FolderDB;
@@ -6,17 +7,37 @@ public sealed class RetryFileStoreOptions
 {
     internal static readonly RetryFileStoreOptions Default = new();
 
-    public RetryFileStoreOperationOptions Read { get; set; } = RetryFileStoreOperationOptions.CreateReadDefaults();
-    public RetryFileStoreOperationOptions Write { get; set; } = RetryFileStoreOperationOptions.CreateWriteDefaults();
-    public RetryFileStoreOperationOptions Delete { get; set; } = RetryFileStoreOperationOptions.CreateWriteDefaults();
+    private RetryFileStoreOperationOptions _read = RetryFileStoreOperationOptions.CreateReadDefaults();
+    private RetryFileStoreOperationOptions _write = RetryFileStoreOperationOptions.CreateWriteDefaults();
+    private RetryFileStoreOperationOptions _delete = RetryFileStoreOperationOptions.CreateWriteDefaults();
 
-    internal RetryFileStoreOptions CopyNormalized()
+    public RetryFileStoreOperationOptions Read
     {
-        return new RetryFileStoreOptions
+        get => _read;
+        set
         {
-            Read = Read?.CopyNormalized() ?? Default.Read,
-            Write = Write?.CopyNormalized() ?? Default.Write,
-            Delete = Delete?.CopyNormalized() ?? Default.Delete
-        };
+            ArgumentNullException.ThrowIfNull(value);
+            _read = value;
+        }
+    }
+
+    public RetryFileStoreOperationOptions Write
+    {
+        get => _write;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _write = value;
+        }
+    }
+
+    public RetryFileStoreOperationOptions Delete
+    {
+        get => _delete;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _delete = value;
+        }
     }
 }

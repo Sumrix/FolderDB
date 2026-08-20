@@ -275,7 +275,7 @@ internal sealed class DatabaseFactory
         var effectiveOptions = options ?? new DefaultRetrySchedulerOptions();
 
         return new TimeBucketQueueManager(
-            intervalMs: effectiveOptions.IntervalMs,
+            interval: effectiveOptions.Interval,
             maxRetryIntervals: effectiveOptions.MaxRetryIntervals,
             backoffMultiplier: effectiveOptions.BackoffMultiplier,
             // The values are paths, so we need to use the OS-dependent comparer

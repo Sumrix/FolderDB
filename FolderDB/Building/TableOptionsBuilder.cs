@@ -19,9 +19,6 @@ public abstract class TableOptionsBuilder<TKey, TRecord, TBuilder>
 
     public TBuilder WithName(string name)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Table name cannot be null or whitespace.", nameof(name));
-
         Options.Name = name;
         return This;
     }

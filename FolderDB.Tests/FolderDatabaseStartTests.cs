@@ -187,7 +187,7 @@ public sealed class FolderDatabaseStartTests
         {
             var retrySchedulerOptions = new DefaultRetrySchedulerOptions
             {
-                IntervalMs = 100,
+                Interval = TimeSpan.FromMilliseconds(100),
                 MaxRetryIntervals = 10,
                 BackoffMultiplier = 2
             };
@@ -227,7 +227,7 @@ public sealed class FolderDatabaseStartTests
                 RetrySchedulerFactory = loggerFactory => FolderDatabase.CreateDefaultRetryScheduler(
                     new DefaultRetrySchedulerOptions
                     {
-                        IntervalMs = 100,
+                        Interval = TimeSpan.FromMilliseconds(100),
                         MaxRetryIntervals = 10,
                         BackoffMultiplier = 2
                     },

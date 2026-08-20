@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FolderDB.Retry;
@@ -8,13 +9,13 @@ public class TimeBucketQueueManagerTests
 {
     // One bucket is short, but a backed off attempt lands 20 buckets (~1s) away. That gap is what
     // makes the assertions below distinguish "kept its backoff progression" from "moved to the front".
-    private const int _intervalMs = 50;
+    private static readonly TimeSpan _interval = TimeSpan.FromMilliseconds(50);
     private const int _backoffMultiplier = 20;
     private const int _minBackoffWaitMs = 500;
     private const int _backoffQuietWaitMs = 400;
 
     private static TimeBucketQueueManager CreateManager() =>
-        new(_intervalMs, maxRetryIntervals: 100, _backoffMultiplier);
+        new(_interval, maxRetryIntervals: 100, _backoffMultiplier);
 
     [Fact]
     public async Task Enqueue_WhenPlainRequestArrivesDuringProcessing_KeepsBackoffProgression()

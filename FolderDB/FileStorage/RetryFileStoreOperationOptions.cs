@@ -1,22 +1,47 @@
 using System;
-using FolderDB.Infrastructure.Helpers;
+using FolderDB.Retry;
 
 namespace FolderDB.FileStorage;
 
 public sealed class RetryFileStoreOperationOptions
 {
-    public int MaxAttempts { get; set; } = 1;
-    public TimeSpan Delay { get; set; } = TimeSpan.Zero;
-    public double BackoffMultiplier { get; set; } = 1;
+    private int _maxAttempts = 1;
+    private TimeSpan _delay = TimeSpan.Zero;
+    private double _backoffMultiplier = 1;
 
-    internal RetryFileStoreOperationOptions CopyNormalized()
+    public int MaxAttempts
     {
-        return new RetryFileStoreOperationOptions
+        get => _maxAttempts;
+        set
         {
-            MaxAttempts = Math.Max(1, MaxAttempts),
-            Delay = TimeSpanHelper.Clamp(Delay, TimeSpan.Zero, RetryConsts.MaxDelay),
-            BackoffMultiplier = Math.Max(1, BackoffMultiplier)
-        };
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value);
+            _maxAttempts = value;
+        }
+    }
+
+    public TimeSpan Delay
+    {
+        get => _delay;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, TimeSpan.Zero);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(value, RetryConsts.MaxDelay);
+            _delay = value;
+        }
+    }
+
+    public double BackoffMultiplier
+    {
+        get => _backoffMultiplier;
+        set
+        {
+            // ThrowIfLessThan cannot reject NaN: every comparison with it is false.
+            if (double.IsNaN(value))
+                throw new ArgumentOutOfRangeException(nameof(value), value, "The value must be a number.");
+
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            _backoffMultiplier = value;
+        }
     }
 
     internal static RetryFileStoreOperationOptions CreateReadDefaults()

@@ -12,7 +12,7 @@ namespace FolderDB.Retry;
 public class TimeBucketQueueManager : IRetryScheduler<string>
 {
     private readonly int _maxRetryIntervals;
-    private readonly int _backoffMultiplier;
+    private readonly double _backoffMultiplier;
     private readonly CancellationTokenSource _lifetimeCts;
     private readonly CancellationToken _cancellationToken;
     private readonly ConcurrentDictionary<string, QueueItem> _items;
@@ -20,15 +20,24 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
     private readonly ILogger<TimeBucketQueueManager> _logger;
 
     public TimeBucketQueueManager(
-        int intervalMs,
+        TimeSpan interval,
         int maxRetryIntervals = 10,
-        int backoffMultiplier = 2,
+        double backoffMultiplier = 2,
         IEqualityComparer<string>? valueComparer = null,
         ILoggerFactory? loggerFactory = null)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(intervalMs);
+        ArgumentOutOfRangeException.ThrowIfLessThan(interval, TimeSpan.FromMilliseconds(1));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(interval, RetryConsts.MaxDelay);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxRetryIntervals);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(backoffMultiplier);
+
+        // ThrowIfLessThan cannot reject NaN: every comparison with it is false.
+        if (double.IsNaN(backoffMultiplier))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(backoffMultiplier), backoffMultiplier, "The value must be a number.");
+        }
+
+        ArgumentOutOfRangeException.ThrowIfLessThan(backoffMultiplier, 1);
 
         _maxRetryIntervals = maxRetryIntervals;
         _backoffMultiplier = backoffMultiplier;
@@ -41,7 +50,7 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
 
         // We pass our processing logic as the callback
         _scheduler = new BucketTimerScheduler(
-            intervalMs,
+            (int)interval.TotalMilliseconds,
             ProcessBatchAsync,
             effectiveLoggerFactory.CreateLogger<BucketTimerScheduler>());
     }
@@ -131,7 +140,7 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
 
     private void ScheduleRetry(QueueItem item, bool resetBackoff)
     {
-        int backoff;
+        double backoff;
         if (resetBackoff)
         {
             backoff = 1;
@@ -145,8 +154,10 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
             }
         }
 
+        // The progression is kept fractional so that a multiplier below 2 still grows it, while the
+        // bucket it lands in is a whole interval, rounded away from the one already passed.
         item.CurrentBackoff = backoff;
-        item.TargetBucket = _scheduler.GetCurrentBucket() + backoff;
+        item.TargetBucket = _scheduler.GetCurrentBucket() + (long)Math.Ceiling(backoff);
         item.MinBackoffRequested = false;
 
         // Processing took the item out of the dictionary, so a concurrent Enqueue could have put a
@@ -187,7 +198,7 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
         public required string Value { get; init; }
         public required Func<string, CancellationToken, Task<RetryDecision>> Processor { get; init; }
         public required long TargetBucket { get; set; }
-        public required int CurrentBackoff { get; set; }
+        public required double CurrentBackoff { get; set; }
         public bool MinBackoffRequested { get; set; }
     }
 }

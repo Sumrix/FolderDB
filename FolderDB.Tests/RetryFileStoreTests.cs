@@ -8,39 +8,14 @@ namespace FolderDB.Tests;
 
 public class RetryFileStoreTests
 {
+    // Guards the explicit NaN check in the setter: ThrowIfLessThan lets NaN through, because every
+    // comparison with it is false, and the delay computed from it throws deep inside a file operation.
     [Fact]
-    public async Task WriteAsync_WhenUserOptionsMutateAfterConstruction_UsesConstructorSnapshot()
+    public void BackoffMultiplier_WhenNaN_Throws()
     {
-        var inner = new TransientWriteFileStore(failuresBeforeSuccess: 1);
-        var writeOptions = new RetryFileStoreOperationOptions
-        {
-            MaxAttempts = 2,
-            Delay = TimeSpan.Zero
-        };
-        var retryStore = new RetryFileStore(
-            inner,
-            new RetryFileStoreOptions { Write = writeOptions });
+        var options = new RetryFileStoreOperationOptions();
 
-        writeOptions.MaxAttempts = 1;
-
-        var result = await retryStore.WriteAsync("record.json", _ => Task.CompletedTask, CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(2, inner.WriteAttempts);
-    }
-
-    [Fact]
-    public async Task WriteAsync_WhenOperationOptionsAreNull_UsesDefaultOperationOptions()
-    {
-        var inner = new TransientWriteFileStore(failuresBeforeSuccess: 4);
-        var retryStore = new RetryFileStore(
-            inner,
-            new RetryFileStoreOptions { Write = null! });
-
-        var result = await retryStore.WriteAsync("record.json", _ => Task.CompletedTask, CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(5, inner.WriteAttempts);
+        Assert.Throws<ArgumentOutOfRangeException>(() => options.BackoffMultiplier = double.NaN);
     }
 
     [Fact]
@@ -91,22 +66,12 @@ public class RetryFileStoreTests
 
         public Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken ct)
         {
-            return Task.FromResult(new FileReadResult<T>(
-                default,
-                default,
-                new FileError(
-                    FileErrorReason.Unavailable,
-                    FileErrorPersistence.Persistent,
-                    new IOException("read failed"))));
+            throw new NotSupportedException();
         }
 
         public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken ct)
         {
-            return Task.FromResult(new FileDeleteResult(
-                new FileError(
-                    FileErrorReason.Unavailable,
-                    FileErrorPersistence.Persistent,
-                    new IOException("delete failed"))));
+            throw new NotSupportedException();
         }
 
         public FileFingerprint GetFileFingerprint(string path)

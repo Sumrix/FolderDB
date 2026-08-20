@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FolderDB.Infrastructure.Logging;
+using FolderDB.Retry;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -13,7 +14,7 @@ public sealed class RetryFileStore(
     RetryFileStoreOptions? options = null,
     ILogger<RetryFileStore>? logger = null) : IFileStore
 {
-    private readonly RetryFileStoreOptions _options = options?.CopyNormalized() ?? RetryFileStoreOptions.Default;
+    private readonly RetryFileStoreOptions _options = options ?? RetryFileStoreOptions.Default;
     private readonly ILogger<RetryFileStore> _logger = logger ?? NullLogger<RetryFileStore>.Instance;
 
     public async Task<FileWriteResult> WriteAsync(
