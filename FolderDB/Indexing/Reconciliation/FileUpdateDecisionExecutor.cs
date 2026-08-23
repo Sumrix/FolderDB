@@ -18,7 +18,7 @@ internal class FileUpdateDecisionExecutor<TKey, TRecord, TProjection>(
         string fileName,
         FileReadResult<RecordDecodeResult<TRecord>> readResult,
         RecordScope<TKey, TRecord, TProjection> fileRecordScope,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         if (decision == FileUpdateDecision.DoNothing)
         {
@@ -30,7 +30,7 @@ internal class FileUpdateDecisionExecutor<TKey, TRecord, TProjection>(
             throw new ArgumentOutOfRangeException(nameof(decision), decision, null);
         }
 
-        var writeResult = await recordStore.WriteAsync(path, readResult.Value.Record, ct);
+        var writeResult = await recordStore.WriteAsync(path, readResult.Value.Record, cancellationToken);
         if (!writeResult.IsSuccess)
         {
             return writeResult.Error;

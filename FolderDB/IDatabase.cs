@@ -8,7 +8,7 @@ public interface IDatabase : IAsyncDisposable
 {
     string RootPath { get; }
 
-    Task FlushAsync(CancellationToken ct = default);
+    Task FlushAsync(CancellationToken cancellationToken = default);
 
     void RequestRescan();
 }

@@ -179,12 +179,12 @@ public class TableDefinitionBuilderTests
     {
         public int? CurrentSchemaVersion => null;
 
-        public Task<RecordDecodeResult<TestRecord>> DecodeAsync(Stream stream, CancellationToken ct)
+        public Task<RecordDecodeResult<TestRecord>> DecodeAsync(Stream stream, CancellationToken cancellationToken)
         {
             throw new System.NotSupportedException();
         }
 
-        public Task EncodeAsync(Stream stream, TestRecord record, CancellationToken ct)
+        public Task EncodeAsync(Stream stream, TestRecord record, CancellationToken cancellationToken)
         {
             throw new System.NotSupportedException();
         }
@@ -193,7 +193,7 @@ public class TableDefinitionBuilderTests
     private sealed class FakeIndexPersistence<TKey, TProjection> : ITableIndexPersistence<TKey, TProjection>
         where TKey : notnull
     {
-        public Task<TableIndexState<TKey, TProjection>?> LoadIfExistsAsync(string path, CancellationToken ct = default)
+        public Task<TableIndexState<TKey, TProjection>?> LoadIfExistsAsync(string path, CancellationToken cancellationToken = default)
         {
             throw new System.NotSupportedException();
         }
@@ -274,6 +274,6 @@ public class TableDefinitionBuilderTests
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-        public Task FlushAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task FlushAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

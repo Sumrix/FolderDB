@@ -116,14 +116,14 @@ public class FolderDatabase : IDatabase
         return GetTable<TRecord, IIndexedTable<TKey, TRecord, TProjection>>();
     }
 
-    public async Task FlushAsync(CancellationToken ct = default)
+    public async Task FlushAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
         foreach (var tableEngine in _tableEnginesByType.Values)
         {
-            ct.ThrowIfCancellationRequested();
-            await tableEngine.FlushAsync(ct);
+            cancellationToken.ThrowIfCancellationRequested();
+            await tableEngine.FlushAsync(cancellationToken);
         }
     }
 

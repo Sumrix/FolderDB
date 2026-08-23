@@ -41,7 +41,7 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
 
     private static readonly RetryDecisionMaker _retryDecisionMaker = new();
 
-    public async Task<RetryDecision> ReconcileAsync(string path, CancellationToken ct)
+    public async Task<RetryDecision> ReconcileAsync(string path, CancellationToken cancellationToken)
     {
         using var _ = logger.BeginMethodScope();
         var stopwatch = Stopwatch.StartNew();
@@ -51,13 +51,13 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
 
         try
         {
-            var outcome = await ReconcileCoreAsync(path, ct);
+            var outcome = await ReconcileCoreAsync(path, cancellationToken);
 
             LogOutcome(outcome, fileName, stopwatch.ElapsedMilliseconds);
 
             return outcome.Retry;
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
@@ -78,7 +78,7 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
         SharedIndexScope<TKey, TRecord, TProjection> sharedIndexScope,
         RecordScope<TKey, TRecord, TProjection> heldScope,
         FileReadResult<RecordDecodeResult<TRecord>> readResult,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
         using var _ = logger.BeginMethodScope();
         var stopwatch = Stopwatch.StartNew();
@@ -91,13 +91,13 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
 
         try
         {
-            var outcome = await ContinueAfterReadCoreAsync(path, sharedIndexScope, heldScope, readResult, ct);
+            var outcome = await ContinueAfterReadCoreAsync(path, sharedIndexScope, heldScope, readResult, cancellationToken);
 
             LogOutcome(outcome, fileName, stopwatch.ElapsedMilliseconds);
 
             return outcome.Retry;
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
@@ -113,11 +113,11 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
         }
     }
 
-    private async Task<ReconciliationOutcome> ReconcileCoreAsync(string path, CancellationToken ct)
+    private async Task<ReconciliationOutcome> ReconcileCoreAsync(string path, CancellationToken cancellationToken)
     {
-        using var sharedIndexScope = await index.EnterSharedScopeAsync(ct);
+        using var sharedIndexScope = await index.EnterSharedScopeAsync(cancellationToken);
 
-        var firstPass = await DecideAsync(path, sharedIndexScope, null, ct);
+        var firstPass = await DecideAsync(path, sharedIndexScope, null, cancellationToken);
         if (firstPass.IsComplete)
         {
             return CreateOutcome(firstPass);
@@ -132,7 +132,7 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
             firstPass.DiskId.ToObject());
 
         var lockWaitStart = Stopwatch.GetTimestamp();
-        using var scopes = await sharedIndexScope.LockRecordsAsync(firstPass.IndexedId, firstPass.DiskId, ct);
+        using var scopes = await sharedIndexScope.LockRecordsAsync(firstPass.IndexedId, firstPass.DiskId, cancellationToken);
 
         logger.LogTrace(
             "Locks acquired: file=\"{File}\" indexedId={IndexedId} diskId={DiskId} waitMs={WaitMs}",
@@ -141,14 +141,14 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
             firstPass.DiskId.ToObject(),
             Math.Round(Stopwatch.GetElapsedTime(lockWaitStart).TotalMilliseconds, 3));
 
-        var secondPass = await DecideAsync(path, sharedIndexScope, firstPass.ReadResult, ct);
+        var secondPass = await DecideAsync(path, sharedIndexScope, firstPass.ReadResult, cancellationToken);
         return await ExecutePassAsync(
             path,
             secondPass,
             scopes.First,
             scopes.Second,
             executeFileUpdateDecision: true,
-            ct);
+            cancellationToken);
     }
 
     private Task<ReconciliationOutcome> ContinueAfterReadCoreAsync(
@@ -156,7 +156,7 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
         SharedIndexScope<TKey, TRecord, TProjection> sharedIndexScope,
         RecordScope<TKey, TRecord, TProjection> heldScope,
         FileReadResult<RecordDecodeResult<TRecord>> readResult,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
         var fileName = Path.GetFileName(path);
         var indexedState = sharedIndexScope.Files.GetValueOrDefault(fileName);
@@ -178,7 +178,7 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
             heldScope,
             null,
             executeFileUpdateDecision: false,
-            ct);
+            cancellationToken);
     }
 
     private async Task<ReconciliationOutcome> ExecutePassAsync(
@@ -187,7 +187,7 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
         RecordScope<TKey, TRecord, TProjection>? firstScope,
         RecordScope<TKey, TRecord, TProjection>? secondScope,
         bool executeFileUpdateDecision,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         var fileName = Path.GetFileName(path);
 
@@ -269,7 +269,7 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
             fileName,
             pass.ReadResult,
             diskIdScope,
-            ct);
+            cancellationToken);
 
         if (writeError is null)
         {
@@ -295,7 +295,7 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
         string path,
         SharedIndexScope<TKey, TRecord, TProjection> sharedIndexScope,
         FileReadResult<RecordDecodeResult<TRecord>>? readCache,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         var fileName = Path.GetFileName(path);
         var fingerprint = fileStore.GetFileFingerprint(path);
@@ -311,7 +311,7 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
             return new(indexDecision, fileUpdateIntent, fingerprint, readCache ?? default, indexedState);
         }
 
-        var readResult = await ReadFile(path, readCache, fingerprint, fileName, ct);
+        var readResult = await ReadFile(path, readCache, fingerprint, fileName, cancellationToken);
 
         indexDecision = _indexDecisionMaker.MakePostReadDecision(readResult, indexedState);
         fileUpdateIntent = _fileUpdateDecisionMaker?.MakePostReadIntent(readResult);
@@ -324,7 +324,7 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
         FileReadResult<RecordDecodeResult<TRecord>>? readCache,
         FileFingerprint fingerprint,
         string fileName,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         if (readCache is not null &&
             readCache.Value.Fingerprint == fingerprint)
@@ -332,7 +332,7 @@ internal class FileReconciler<TKey, TRecord, TProjection>(
             return readCache.Value;
         }
 
-        var readResult = await recordStore.ReadAsync(path, ct);
+        var readResult = await recordStore.ReadAsync(path, cancellationToken);
 
         LogReadResult(readResult, fileName);
 

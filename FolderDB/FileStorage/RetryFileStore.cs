@@ -20,37 +20,37 @@ public sealed class RetryFileStore(
     public async Task<FileWriteResult> WriteAsync(
         string path,
         Func<Stream, Task> writeAction,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         using var _ = _logger.BeginMethodScope();
 
         return await ExecuteWithRetryAsync(
             path,
             _options.Write,
-            () => inner.WriteAsync(path, writeAction, ct),
-            ct);
+            () => inner.WriteAsync(path, writeAction, cancellationToken),
+            cancellationToken);
     }
 
-    public async Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken ct)
+    public async Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken cancellationToken)
     {
         using var _ = _logger.BeginMethodScope();
 
         return await ExecuteWithRetryAsync(
             path,
             _options.Read,
-            () => inner.ReadAsync(path, parseAction, ct),
-            ct);
+            () => inner.ReadAsync(path, parseAction, cancellationToken),
+            cancellationToken);
     }
 
-    public async Task<FileDeleteResult> DeleteAsync(string path, CancellationToken ct)
+    public async Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken)
     {
         using var _ = _logger.BeginMethodScope();
 
         return await ExecuteWithRetryAsync(
             path,
             _options.Delete,
-            () => inner.DeleteAsync(path, ct),
-            ct);
+            () => inner.DeleteAsync(path, cancellationToken),
+            cancellationToken);
     }
 
     public FileFingerprint GetFileFingerprint(string path)
@@ -62,12 +62,12 @@ public sealed class RetryFileStore(
         string path,
         RetryFileStoreOperationOptions options,
         Func<Task<T>> action,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
         where T : IFileOperationResult
     {
         for (var attempt = 1; ; attempt++)
         {
-            ct.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested();
 
             var result = await action();
             if (result.Error?.Persistence != FileErrorPersistence.Transient || attempt >= options.MaxAttempts)
@@ -84,7 +84,7 @@ public sealed class RetryFileStore(
 
             if (delay > TimeSpan.Zero)
             {
-                await Task.Delay(delay, ct);
+                await Task.Delay(delay, cancellationToken);
             }
         }
     }

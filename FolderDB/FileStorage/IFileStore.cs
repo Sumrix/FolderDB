@@ -12,11 +12,11 @@ namespace FolderDB.FileStorage;
 /// </summary>
 public interface IFileStore
 {
-    Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken ct);
+    Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken cancellationToken);
 
-    Task<FileWriteResult> WriteAsync(string path, Func<Stream, Task> writeAction, CancellationToken ct);
+    Task<FileWriteResult> WriteAsync(string path, Func<Stream, Task> writeAction, CancellationToken cancellationToken);
 
-    Task<FileDeleteResult> DeleteAsync(string path, CancellationToken ct);
+    Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken);
 
     FileFingerprint GetFileFingerprint(string path);
 }

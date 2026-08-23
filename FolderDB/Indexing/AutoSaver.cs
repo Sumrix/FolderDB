@@ -111,39 +111,39 @@ public class AutoSaver : IAsyncDisposable
     private IDisposable? BeginScope([CallerMemberName] string m = "") =>
         _logger.BeginMethodScope(m);
 
-    public async Task FlushAsync(CancellationToken ct)
+    public async Task FlushAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
 
-        await WriteSnapshotAsync(ct);
+        await WriteSnapshotAsync(cancellationToken);
     }
 
-    private async Task SyncLoopAsync(CancellationToken ct)
+    private async Task SyncLoopAsync(CancellationToken cancellationToken)
     {
         try
         {
             var saveResult = SaveResult.NoChanges;
 
-            while (!ct.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 if (saveResult != SaveResult.Failed)
                 {
-                    await _pendingSignal.WaitAsync(ct);
+                    await _pendingSignal.WaitAsync(cancellationToken);
                 }
 
-                await Task.Delay(_savingInterval, ct);
+                await Task.Delay(_savingInterval, cancellationToken);
 
-                saveResult = await WriteSnapshotAsync(ct);
+                saveResult = await WriteSnapshotAsync(cancellationToken);
             }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
     }
 
-    private async Task<SaveResult> WriteSnapshotAsync(CancellationToken ct)
+    private async Task<SaveResult> WriteSnapshotAsync(CancellationToken cancellationToken)
     {
-        using var _ = await _writeLock.LockAsync(ct);
+        using var _ = await _writeLock.LockAsync(cancellationToken);
         using var __ = BeginScope();
 
         long changeVersion = Interlocked.Read(ref _changeVersion);
@@ -157,12 +157,12 @@ public class AutoSaver : IAsyncDisposable
         try
         {
 
-            var payload = _getSnapshot(ct);
+            var payload = _getSnapshot(cancellationToken);
 
             Directory.CreateDirectory(_dirPath);
 
             // Atomic write: temp file, then Move
-            await File.WriteAllBytesAsync(_tmpPath, payload, ct);
+            await File.WriteAllBytesAsync(_tmpPath, payload, cancellationToken);
             File.Move(_tmpPath, _filePath, overwrite: true);
 
             // Update saved version
@@ -171,7 +171,7 @@ public class AutoSaver : IAsyncDisposable
             _logger.LogDebug("Saved: version={changeVersion} file=\"{FilePath}\"", changeVersion, _filePath);
             return SaveResult.Saved;
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }

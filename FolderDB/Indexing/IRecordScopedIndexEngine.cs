@@ -46,5 +46,5 @@ public interface IRecordScopedIndexEngine<TKey, in TRecord, TProjection> : IAsyn
 
     void Clear();
 
-    Task FlushAsync(CancellationToken ct = default);
+    Task FlushAsync(CancellationToken cancellationToken = default);
 }

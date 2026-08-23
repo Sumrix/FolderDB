@@ -50,7 +50,8 @@ internal sealed class ReconcilerTestContext : IAsyncDisposable
 
     public void RequestDirectoryReconcile()
     {
-        _retryScheduler.Enqueue(_tablePath, (_, ct) => _directoryReconciler.ReconcileAsync(ct));
+        _retryScheduler.Enqueue(_tablePath,
+            (_, cancellationToken) => _directoryReconciler.ReconcileAsync(cancellationToken));
     }
 
     public static async Task<ReconcilerTestContext> CreateAsync(IFileStore? fileStore = null)

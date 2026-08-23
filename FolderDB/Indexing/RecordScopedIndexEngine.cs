@@ -49,9 +49,9 @@ public class RecordScopedIndexEngine<TKey, TRecord, TProjection> : IRecordScoped
         _autoSaver = new AutoSaver(
             indexPath,
             savingInterval,
-            ct =>
+            cancellationToken =>
             {
-                using (Barrier.WriterLock(ct))
+                using (Barrier.WriterLock(cancellationToken))
                 {
                     return persistence.SerializeToBytes(_indexState);
                 }
@@ -66,7 +66,7 @@ public class RecordScopedIndexEngine<TKey, TRecord, TProjection> : IRecordScoped
         TimeSpan? savingInterval = null,
         ILoggerFactory? loggerFactory = null,
         bool autoSaveEnabled = true,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
         loggerFactory ??= NullLoggerFactory.Instance;
         var engineLogger = loggerFactory.CreateLogger<RecordScopedIndexEngine<TKey, TRecord, TProjection>>();
@@ -75,7 +75,7 @@ public class RecordScopedIndexEngine<TKey, TRecord, TProjection> : IRecordScoped
 
         savingInterval ??= TimeSpan.FromSeconds(10);
 
-        var state = await persistence.LoadIfExistsAsync(indexFilePath, ct)
+        var state = await persistence.LoadIfExistsAsync(indexFilePath, cancellationToken)
             ?? new TableIndexState<TKey, TProjection>(context.KeyEqualityComparer);
 
         var engine = new RecordScopedIndexEngine<TKey, TRecord, TProjection>(
@@ -93,9 +93,9 @@ public class RecordScopedIndexEngine<TKey, TRecord, TProjection> : IRecordScoped
         return engine;
     }
 
-    public Task FlushAsync(CancellationToken ct = default)
+    public Task FlushAsync(CancellationToken cancellationToken = default)
     {
-        return _autoSaver.FlushAsync(ct);
+        return _autoSaver.FlushAsync(cancellationToken);
     }
 
     public async ValueTask DisposeAsync()

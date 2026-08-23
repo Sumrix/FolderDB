@@ -12,15 +12,15 @@ public sealed class FileStore(ILogger<FileStore>? logger = null) : IFileStore
 {
     private readonly ILogger<FileStore> _logger = logger ?? NullLogger<FileStore>.Instance;
     
-    public async Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken ct)
+    public async Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken cancellationToken)
     {
-        ct.ThrowIfCancellationRequested();
+        cancellationToken.ThrowIfCancellationRequested();
 
         using var _ = _logger.BeginMethodScope();
         try
         {
             await using var fs = CreateReadStream(path);
-            ct.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested();
 
             T? result;
             FileError? error = null;
@@ -79,9 +79,9 @@ public sealed class FileStore(ILogger<FileStore>? logger = null) : IFileStore
         }
     }
 
-    public async Task<FileWriteResult> WriteAsync(string path, Func<Stream, Task> writeAction, CancellationToken ct)
+    public async Task<FileWriteResult> WriteAsync(string path, Func<Stream, Task> writeAction, CancellationToken cancellationToken)
     {
-        ct.ThrowIfCancellationRequested();
+        cancellationToken.ThrowIfCancellationRequested();
 
         using var _ = _logger.BeginMethodScope();
 
@@ -96,7 +96,7 @@ public sealed class FileStore(ILogger<FileStore>? logger = null) : IFileStore
 
             await using (var fs = CreateWriteStream(tempPath))
             {
-                ct.ThrowIfCancellationRequested();
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
                     await writeAction(fs);
@@ -116,7 +116,7 @@ public sealed class FileStore(ILogger<FileStore>? logger = null) : IFileStore
 
             var fp = GetFileFingerprint(tempPath);
 
-            ct.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested();
 
             try
             {
@@ -165,11 +165,11 @@ public sealed class FileStore(ILogger<FileStore>? logger = null) : IFileStore
         }
     }
 
-    public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken ct)
+    public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken)
     {
         using var _ = _logger.BeginMethodScope();
 
-        ct.ThrowIfCancellationRequested();
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             File.Delete(path);

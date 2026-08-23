@@ -39,7 +39,7 @@ public class JsonTableIndexPersistence<TKey, TProjection> : ITableIndexPersisten
 
     public async Task<TableIndexState<TKey, TProjection>?> LoadIfExistsAsync(
         string path,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
@@ -49,7 +49,7 @@ public class JsonTableIndexPersistence<TKey, TProjection> : ITableIndexPersisten
 
         try
         {
-            var rawDto = await LoadDtoAsync(path, ct);
+            var rawDto = await LoadDtoAsync(path, cancellationToken);
             var state = BuildStateFromDto(rawDto);
             _logger.LogDebug("Starting with loaded state: file=\"{Path}\" records={Records}", path, state.Records.Count);
             return state;
@@ -84,12 +84,12 @@ public class JsonTableIndexPersistence<TKey, TProjection> : ITableIndexPersisten
         }
     }
 
-    private async Task<IndexDto?> LoadDtoAsync(string path, CancellationToken ct)
+    private async Task<IndexDto?> LoadDtoAsync(string path, CancellationToken cancellationToken)
     {
         using var _ = _logger.BeginMethodScope();
 
         await using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        var dto = await JsonSerializer.DeserializeAsync(fs, IndexDtoJsonContext.Default.IndexDto, ct);
+        var dto = await JsonSerializer.DeserializeAsync(fs, IndexDtoJsonContext.Default.IndexDto, cancellationToken);
         _logger.LogTrace("Loaded: file=\"{Path}\" records={Records}", path, dto?.Records.Length ?? 0);
 
         return dto;

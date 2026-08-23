@@ -6,9 +6,11 @@ namespace FolderDB.Infrastructure.Concurrency;
 
 public static class SemaphoreSlimExtensions
 {
-    public static async Task<IDisposable> EnterAsync(this SemaphoreSlim semaphore, CancellationToken ct = default)
+    public static async Task<IDisposable> EnterAsync(
+        this SemaphoreSlim semaphore,
+        CancellationToken cancellationToken = default)
     {
-        await semaphore.WaitAsync(ct);
+        await semaphore.WaitAsync(cancellationToken);
         return new Scope(semaphore);
     }
 

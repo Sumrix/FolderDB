@@ -11,25 +11,25 @@ public static class FinalBuilderExtensions
         this FinalBuilder<TKey, TRecord, NoProjection> builder,
         string path,
         DatabaseOptions? options = null,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        return await FolderDatabase.StartTableAsync(path, builder.Build(), options, ct);
+        return await FolderDatabase.StartTableAsync(path, builder.Build(), options, cancellationToken);
     }
 
     public static async Task<IFolderIndexedTable<TKey, TRecord, TProjection>> StartIndexedAsync<TKey, TRecord, TProjection>(
         this FinalBuilder<TKey, TRecord, TProjection> builder,
         string path,
         DatabaseOptions? options = null,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        return await FolderDatabase.StartIndexedTableAsync(path, builder.Build(), options, ct);
+        return await FolderDatabase.StartIndexedTableAsync(path, builder.Build(), options, cancellationToken);
     }
 }

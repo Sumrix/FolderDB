@@ -46,46 +46,46 @@ public class FolderIndexedTable<TKey, TRecord, TProjection> :
         _engine = engine;
     }
 
-    public Task<TRecord?> GetAsync(TKey id, CancellationToken ct = default)
+    public Task<TRecord?> GetAsync(TKey id, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        return _engine.GetAsync(id, ct);
+        return _engine.GetAsync(id, cancellationToken);
     }
 
-    public Task UpsertAsync(TRecord record, CancellationToken ct = default)
+    public Task UpsertAsync(TRecord record, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        return _engine.UpsertAsync(record, ct);
+        return _engine.UpsertAsync(record, cancellationToken);
     }
 
-    public Task DeleteAsync(TKey id, CancellationToken ct = default)
+    public Task DeleteAsync(TKey id, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        return _engine.DeleteAsync(id, ct);
+        return _engine.DeleteAsync(id, cancellationToken);
     }
 
-    public Task<ReadResult<TRecord>> TryGetAsync(TKey id, CancellationToken ct = default)
+    public Task<ReadResult<TRecord>> TryGetAsync(TKey id, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        return _engine.TryGetAsync(id, ct);
+        return _engine.TryGetAsync(id, cancellationToken);
     }
 
-    public Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken ct = default)
+    public Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        return _engine.TryUpsertAsync(record, ct);
+        return _engine.TryUpsertAsync(record, cancellationToken);
     }
 
-    public Task<OperationResult> TryDeleteAsync(TKey id, CancellationToken ct = default)
+    public Task<OperationResult> TryDeleteAsync(TKey id, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        return _engine.TryDeleteAsync(id, ct);
+        return _engine.TryDeleteAsync(id, cancellationToken);
     }
 
-    public Task FlushAsync(CancellationToken ct = default)
+    public Task FlushAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        return _engine.FlushAsync(ct);
+        return _engine.FlushAsync(cancellationToken);
     }
 
     public void RequestRescan()

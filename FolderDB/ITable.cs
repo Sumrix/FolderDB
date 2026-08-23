@@ -17,32 +17,32 @@ public interface ITable<in TKey, TRecord>
     /// Gets a record by id, or returns null when no record is present.
     /// </summary>
     /// <exception cref="System.Exception">Throws when the record exists but cannot be read or decoded.</exception>
-    Task<TRecord?> GetAsync(TKey id, CancellationToken ct = default);
+    Task<TRecord?> GetAsync(TKey id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Fully replaces the stored state of a record.
     /// </summary>
     /// <exception cref="System.Exception">Throws when the target file cannot be written.</exception>
-    Task UpsertAsync(TRecord record, CancellationToken ct = default);
+    Task UpsertAsync(TRecord record, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Deletes a record and all known files that belong to it.
     /// </summary>
     /// <exception cref="System.Exception">Throws when a known file cannot be deleted.</exception>
-    Task DeleteAsync(TKey id, CancellationToken ct = default);
+    Task DeleteAsync(TKey id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets a record by id and reports expected file access or decoding failures in the result.
     /// </summary>
-    Task<ReadResult<TRecord>> TryGetAsync(TKey id, CancellationToken ct = default);
+    Task<ReadResult<TRecord>> TryGetAsync(TKey id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Fully replaces the stored state of a record and reports expected file access failures in the result.
     /// </summary>
-    Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken ct = default);
+    Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Deletes a record and all known files that belong to it, and reports expected file access failures in the result.
     /// </summary>
-    Task<OperationResult> TryDeleteAsync(TKey id, CancellationToken ct = default);
+    Task<OperationResult> TryDeleteAsync(TKey id, CancellationToken cancellationToken = default);
 }

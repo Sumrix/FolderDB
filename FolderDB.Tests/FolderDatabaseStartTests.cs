@@ -434,22 +434,25 @@ public sealed class FolderDatabaseStartTests
         public Task<FileWriteResult> WriteAsync(
             string path,
             Func<Stream, Task> writeAction,
-            CancellationToken ct)
+            CancellationToken cancellationToken)
         {
             ObjectDisposedException.ThrowIf(Disposed, this);
-            return _inner.WriteAsync(path, writeAction, ct);
+            return _inner.WriteAsync(path, writeAction, cancellationToken);
         }
 
-        public Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken ct)
+        public Task<FileReadResult<T>> ReadAsync<T>(
+            string path,
+            Func<Stream, Task<T>> parseAction,
+            CancellationToken cancellationToken)
         {
             ObjectDisposedException.ThrowIf(Disposed, this);
-            return _inner.ReadAsync(path, parseAction, ct);
+            return _inner.ReadAsync(path, parseAction, cancellationToken);
         }
 
-        public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken ct)
+        public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken)
         {
             ObjectDisposedException.ThrowIf(Disposed, this);
-            return _inner.DeleteAsync(path, ct);
+            return _inner.DeleteAsync(path, cancellationToken);
         }
 
         public FileFingerprint GetFileFingerprint(string path)
@@ -472,21 +475,24 @@ public sealed class FolderDatabaseStartTests
         public Task<FileWriteResult> WriteAsync(
             string path,
             Func<Stream, Task> writeAction,
-            CancellationToken ct)
+            CancellationToken cancellationToken)
         {
             WriteCount++;
-            return inner.WriteAsync(path, writeAction, ct);
+            return inner.WriteAsync(path, writeAction, cancellationToken);
         }
 
-        public Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken ct)
+        public Task<FileReadResult<T>> ReadAsync<T>(
+            string path,
+            Func<Stream, Task<T>> parseAction,
+            CancellationToken cancellationToken)
         {
             ReadCount++;
-            return inner.ReadAsync(path, parseAction, ct);
+            return inner.ReadAsync(path, parseAction, cancellationToken);
         }
 
-        public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken ct)
+        public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken)
         {
-            return inner.DeleteAsync(path, ct);
+            return inner.DeleteAsync(path, cancellationToken);
         }
 
         public FileFingerprint GetFileFingerprint(string path)
@@ -502,7 +508,7 @@ public sealed class FolderDatabaseStartTests
         public Task<FileWriteResult> WriteAsync(
             string path,
             Func<Stream, Task> writeAction,
-            CancellationToken ct)
+            CancellationToken cancellationToken)
         {
             WriteAttempts++;
             return WriteAttempts == 1
@@ -512,17 +518,20 @@ public sealed class FolderDatabaseStartTests
                         FileErrorReason.Unavailable,
                         FileErrorPersistence.Transient,
                         new IOException("transient write"))))
-                : inner.WriteAsync(path, writeAction, ct);
+                : inner.WriteAsync(path, writeAction, cancellationToken);
         }
 
-        public Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken ct)
+        public Task<FileReadResult<T>> ReadAsync<T>(
+            string path,
+            Func<Stream, Task<T>> parseAction,
+            CancellationToken cancellationToken)
         {
-            return inner.ReadAsync(path, parseAction, ct);
+            return inner.ReadAsync(path, parseAction, cancellationToken);
         }
 
-        public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken ct)
+        public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken)
         {
-            return inner.DeleteAsync(path, ct);
+            return inner.DeleteAsync(path, cancellationToken);
         }
 
         public FileFingerprint GetFileFingerprint(string path)

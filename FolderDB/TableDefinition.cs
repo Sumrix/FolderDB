@@ -34,7 +34,7 @@ public class TableDefinition<TKey, TRecord, TProjection>: ITableDefinition
         IRetryScheduler<string> retryScheduler,
         DatabaseOptions options,
         ILoggerFactory loggerFactory,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
         Validate();
 
@@ -46,7 +46,7 @@ public class TableDefinition<TKey, TRecord, TProjection>: ITableDefinition
             retryScheduler,
             options,
             loggerFactory,
-            ct);
+            cancellationToken);
     }
 
     internal void Validate()

@@ -49,7 +49,7 @@ public class RetryFileStoreTests
         public Task<FileWriteResult> WriteAsync(
             string path,
             Func<Stream, Task> writeAction,
-            CancellationToken ct)
+            CancellationToken cancellationToken)
         {
             WriteAttempts++;
             return Task.FromResult(
@@ -64,12 +64,15 @@ public class RetryFileStoreTests
                         new FileFingerprint(DateTime.UtcNow, 1, Exists: true)));
         }
 
-        public Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken ct)
+        public Task<FileReadResult<T>> ReadAsync<T>(
+            string path,
+            Func<Stream, Task<T>> parseAction,
+            CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }
 
-        public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken ct)
+        public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }

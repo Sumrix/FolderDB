@@ -11,14 +11,14 @@ public class RecordCodec<TKey, TRecord>(RecordSchema<TRecord> recordSchema)
 {
     public int? CurrentSchemaVersion => recordSchema.CurrentSchemaVersion;
 
-    public async Task<RecordDecodeResult<TRecord>> DecodeAsync(Stream jsonStream, CancellationToken ct)
+    public async Task<RecordDecodeResult<TRecord>> DecodeAsync(Stream jsonStream, CancellationToken cancellationToken)
     {
-        using var document = await JsonDocument.ParseAsync(jsonStream, cancellationToken: ct);
+        using var document = await JsonDocument.ParseAsync(jsonStream, cancellationToken: cancellationToken);
         return recordSchema.Decoder.Decode(document);
     }
 
-    public async Task EncodeAsync(Stream jsonStream, TRecord record, CancellationToken ct)
+    public async Task EncodeAsync(Stream jsonStream, TRecord record, CancellationToken cancellationToken)
     {
-        await JsonSerializer.SerializeAsync(jsonStream, record, recordSchema.JsonTypeInfo, ct);
+        await JsonSerializer.SerializeAsync(jsonStream, record, recordSchema.JsonTypeInfo, cancellationToken);
     }
 }

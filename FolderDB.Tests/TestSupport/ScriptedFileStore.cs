@@ -89,17 +89,20 @@ internal sealed class ScriptedFileStore : IFileStore
     public Task<FileWriteResult> WriteAsync(
         string path,
         Func<Stream, Task> writeAction,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         if (_writeResults.TryGetValue(path, out var scriptedResults) && scriptedResults.Count > 0)
         {
             return Task.FromResult(scriptedResults.Dequeue().Invoke());
         }
 
-        return _inner.WriteAsync(path, writeAction, ct);
+        return _inner.WriteAsync(path, writeAction, cancellationToken);
     }
 
-    public Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken ct)
+    public Task<FileReadResult<T>> ReadAsync<T>(
+        string path,
+        Func<Stream, Task<T>> parseAction,
+        CancellationToken cancellationToken)
     {
         if (_readFailureResults.TryGetValue(path, out var scriptedResults) && scriptedResults.Count > 0)
         {
@@ -110,12 +113,12 @@ internal sealed class ScriptedFileStore : IFileStore
                 CreateError(result.Persistence, result.Exception)));
         }
 
-        return _inner.ReadAsync(path, parseAction, ct);
+        return _inner.ReadAsync(path, parseAction, cancellationToken);
     }
 
-    public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken ct)
+    public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken)
     {
-        return _inner.DeleteAsync(path, ct);
+        return _inner.DeleteAsync(path, cancellationToken);
     }
 
     public FileFingerprint GetFileFingerprint(string path)

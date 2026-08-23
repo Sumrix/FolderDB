@@ -140,7 +140,7 @@ internal sealed class DatabaseFactory
         string path,
         TableDefinition<TKey, TRecord, TProjection> definition,
         DatabaseOptions? options,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
@@ -167,7 +167,7 @@ internal sealed class DatabaseFactory
                 definition,
                 tablePath,
                 factory.GetIndexFilePath(directoryName),
-                ct);
+                cancellationToken);
 
             var table = new FolderIndexedTable<TKey, TRecord, TProjection>(
                 factory.RootPath,
@@ -225,7 +225,7 @@ internal sealed class DatabaseFactory
         ITableDefinition tableDefinition,
         string tablePath,
         string indexFilePath,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         var tableEngine = await tableDefinition.StartEngineAsync(
             tablePath,
@@ -234,7 +234,7 @@ internal sealed class DatabaseFactory
             _resources.RetryScheduler,
             _options,
             LoggerFactory.CreateTableScopedLoggerFactory(tableDefinition.Name),
-            ct);
+            cancellationToken);
 
         if (tableEngine is null)
         {
@@ -249,7 +249,7 @@ internal sealed class DatabaseFactory
         TableDefinition<TKey, TRecord, TProjection> tableDefinition,
         string tablePath,
         string indexFilePath,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
@@ -265,7 +265,7 @@ internal sealed class DatabaseFactory
             _resources.RetryScheduler,
             _options,
             LoggerFactory.CreateTableScopedLoggerFactory(tableDefinition.Name),
-            ct);
+            cancellationToken);
     }
 
     public static IRetryScheduler<string> CreateDefaultRetryScheduler(
@@ -321,7 +321,7 @@ internal sealed class DatabaseFactory
         public static readonly NullEngine Instance = new();
 
         public void RequestDirectoryReconcile() { }
-        public Task FlushAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task FlushAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

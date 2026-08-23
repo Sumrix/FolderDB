@@ -21,13 +21,13 @@ internal sealed class InlineRetryScheduler : IRetryScheduler<string>
         _queue.Enqueue((value, processor));
     }
 
-    public async Task<bool> RunNextAsync(CancellationToken ct = default)
+    public async Task<bool> RunNextAsync(CancellationToken cancellationToken = default)
     {
         if (_queue.Count == 0)
             return false;
 
         var (value, processor) = _queue.Dequeue();
-        var result = await processor(value, ct);
+        var result = await processor(value, cancellationToken);
         if (result != RetryDecision.Complete)
         {
             _queue.Enqueue((value, processor));
@@ -36,12 +36,12 @@ internal sealed class InlineRetryScheduler : IRetryScheduler<string>
         return true;
     }
 
-    public async Task RunAllAsync(CancellationToken ct = default)
+    public async Task RunAllAsync(CancellationToken cancellationToken = default)
     {
         var safety = 0;
         while (_queue.Count > 0)
         {
-            await RunNextAsync(ct);
+            await RunNextAsync(cancellationToken);
             safety++;
             if (safety > 10_000)
                 throw new InvalidOperationException("InlineRetryScheduler exceeded safety iteration limit.");

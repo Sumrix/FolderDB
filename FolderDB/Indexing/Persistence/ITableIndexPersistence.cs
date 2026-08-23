@@ -12,7 +12,7 @@ public interface ITableIndexPersistence<TKey, TProjection>
 {
     Task<TableIndexState<TKey, TProjection>?> LoadIfExistsAsync(
         string path,
-        CancellationToken ct = default);
+        CancellationToken cancellationToken = default);
 
     byte[] SerializeToBytes(TableIndexState<TKey, TProjection> state);
 }

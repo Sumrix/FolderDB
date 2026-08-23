@@ -13,7 +13,7 @@ public interface IRecordCodec<TKey, TRecord>
 {
     int? CurrentSchemaVersion { get; }
 
-    Task<RecordDecodeResult<TRecord>> DecodeAsync(Stream stream, CancellationToken ct);
+    Task<RecordDecodeResult<TRecord>> DecodeAsync(Stream stream, CancellationToken cancellationToken);
 
-    Task EncodeAsync(Stream stream, TRecord record, CancellationToken ct);
+    Task EncodeAsync(Stream stream, TRecord record, CancellationToken cancellationToken);
 }

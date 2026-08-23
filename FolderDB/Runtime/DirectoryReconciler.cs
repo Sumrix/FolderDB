@@ -23,7 +23,7 @@ internal sealed class DirectoryReconciler<TKey, TRecord, TProjection>(
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
 {
-    public async Task<RetryDecision> ReconcileAsync(CancellationToken ct = default)
+    public async Task<RetryDecision> ReconcileAsync(CancellationToken cancellationToken = default)
     {
         using var _ = logger.BeginMethodScope();
         var stopwatch = Stopwatch.StartNew();
@@ -37,7 +37,7 @@ internal sealed class DirectoryReconciler<TKey, TRecord, TProjection>(
         }
         catch (DirectoryNotFoundException)
         {
-            using (var exclusiveIndexScope = await index.EnterExclusiveScopeAsync(ct))
+            using (var exclusiveIndexScope = await index.EnterExclusiveScopeAsync(cancellationToken))
             {
                 logger.LogWarning("Rescan directory missing, index cleared: path=\"{Path}\"", tablePath);
                 exclusiveIndexScope.Clear();
@@ -52,7 +52,7 @@ internal sealed class DirectoryReconciler<TKey, TRecord, TProjection>(
         }
 
         HashSet<string> processingFileNames;
-        using (var sharedIndexScope = await index.EnterSharedScopeAsync(ct))
+        using (var sharedIndexScope = await index.EnterSharedScopeAsync(cancellationToken))
         {
             processingFileNames = filesOnDisk
                 .Union(sharedIndexScope.Files.Keys)
@@ -62,14 +62,14 @@ internal sealed class DirectoryReconciler<TKey, TRecord, TProjection>(
         foreach (var fileName in processingFileNames)
         {
             var filePath = Path.Combine(tablePath, fileName);
-            var result = await fileReconciler.ReconcileAsync(filePath, ct);
+            var result = await fileReconciler.ReconcileAsync(filePath, cancellationToken);
             if (result != RetryDecision.Complete)
             {
                 requestFileReconcile(filePath, result == RetryDecision.RetryWithMinBackoff);
             }
         }
 
-        using (var sharedIndexScope = await index.EnterSharedScopeAsync(ct))
+        using (var sharedIndexScope = await index.EnterSharedScopeAsync(cancellationToken))
         {
             logger.LogDebug(
                 "Rescan completed: path=\"{Path}\" files={Files} entries={Entries} durationMs={DurationMs}",

@@ -69,7 +69,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
         IRetryScheduler<string> retryScheduler,
         DatabaseOptions options,
         ILoggerFactory loggerFactory,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(loggerFactory);
 
@@ -88,7 +88,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
                 storage,
                 options,
                 loggerFactory));
-        var index = await CreateIndexAsync(indexFilePath, definition, tableContext, options, loggerFactory, ct);
+        var index = await CreateIndexAsync(indexFilePath, definition, tableContext, options, loggerFactory, cancellationToken);
 
         var fileReconciler = new FileReconciler<TKey, TRecord, TProjection>(
             tableContext,
@@ -189,7 +189,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
         TableContext<TKey, TRecord, TProjection> tableContext,
         DatabaseOptions options,
         ILoggerFactory loggerFactory,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         IRecordScopedIndexEngine<TKey, TRecord, TProjection> engine;
 
@@ -210,7 +210,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
                 options.IndexAutoSaveInterval,
                 loggerFactory,
                 autoSaveEnabled: true,
-                ct);
+                cancellationToken);
         }
         else if (definition.IndexEngineFactory is not null)
         {
@@ -219,7 +219,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
                 Table = tableContext,
                 DatabaseOptions = options,
                 IndexFilePath = indexFilePath,
-                CancellationToken = ct
+                CancellationToken = cancellationToken
             };
             engine = await definition.IndexEngineFactory(ctx);
             if (engine is null)
@@ -237,19 +237,19 @@ public class TableEngine<TKey, TRecord, TProjection> :
         return new TableIndex<TKey, TRecord, TProjection>(engine, tableContext);
     }
 
-    public Task<TRecord?> GetAsync(TKey id, CancellationToken ct = default) => _processor.GetAsync(id, ct);
+    public Task<TRecord?> GetAsync(TKey id, CancellationToken cancellationToken = default) => _processor.GetAsync(id, cancellationToken);
 
-    public Task UpsertAsync(TRecord record, CancellationToken ct = default) => _processor.UpsertAsync(record, ct);
+    public Task UpsertAsync(TRecord record, CancellationToken cancellationToken = default) => _processor.UpsertAsync(record, cancellationToken);
 
-    public Task DeleteAsync(TKey id, CancellationToken ct = default) => _processor.DeleteAsync(id, ct);
+    public Task DeleteAsync(TKey id, CancellationToken cancellationToken = default) => _processor.DeleteAsync(id, cancellationToken);
 
-    public Task<ReadResult<TRecord>> TryGetAsync(TKey id, CancellationToken ct = default) => _processor.TryGetAsync(id, ct);
+    public Task<ReadResult<TRecord>> TryGetAsync(TKey id, CancellationToken cancellationToken = default) => _processor.TryGetAsync(id, cancellationToken);
 
-    public Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken ct = default) => _processor.TryUpsertAsync(record, ct);
+    public Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default) => _processor.TryUpsertAsync(record, cancellationToken);
 
-    public Task<OperationResult> TryDeleteAsync(TKey id, CancellationToken ct = default) => _processor.TryDeleteAsync(id, ct);
+    public Task<OperationResult> TryDeleteAsync(TKey id, CancellationToken cancellationToken = default) => _processor.TryDeleteAsync(id, cancellationToken);
 
-    public Task FlushAsync(CancellationToken ct = default) => _index.FlushAsync(ct);
+    public Task FlushAsync(CancellationToken cancellationToken = default) => _index.FlushAsync(cancellationToken);
 
     public async ValueTask DisposeAsync()
     {
@@ -270,14 +270,14 @@ public class TableEngine<TKey, TRecord, TProjection> :
         _retryScheduler.Enqueue(path, ReconcileFileAsync);
     }
 
-    private Task<RetryDecision> ReconcileFileAsync(string path, CancellationToken ct)
+    private Task<RetryDecision> ReconcileFileAsync(string path, CancellationToken cancellationToken)
     {
-        return _fileReconciler.ReconcileAsync(path, ct);
+        return _fileReconciler.ReconcileAsync(path, cancellationToken);
     }
 
-    private Task<RetryDecision> ReconcileDirectoryAsync(string _, CancellationToken ct)
+    private Task<RetryDecision> ReconcileDirectoryAsync(string _, CancellationToken cancellationToken)
     {
-        return _directoryReconciler.ReconcileAsync(ct);
+        return _directoryReconciler.ReconcileAsync(cancellationToken);
     }
 
     private static bool TryCreateProjection(

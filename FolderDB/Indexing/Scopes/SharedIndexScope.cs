@@ -18,16 +18,18 @@ public class SharedIndexScope<TKey, TRecord, TProjection>(
     public IReadOnlyDictionary<TKey, IReadOnlyRecordIndexState<TKey, TProjection>> Records => engine.Records;
     public IReadOnlyDictionary<string, IReadOnlyFileIndexState<TKey, TProjection>> Files => engine.Files;
 
-    public async Task<RecordScope<TKey, TRecord, TProjection>> LockRecordAsync(TKey id, CancellationToken ct = default)
+    public async Task<RecordScope<TKey, TRecord, TProjection>> LockRecordAsync(
+        TKey id,
+        CancellationToken cancellationToken = default)
     {
-        var idLock = await engine.IdLocks.LockAsync(id, ct);
+        var idLock = await engine.IdLocks.LockAsync(id, cancellationToken);
         return new RecordScope<TKey, TRecord, TProjection>(engine, idLock, id);
     }
 
     public async Task<RecordScopePair<TKey, TRecord, TProjection>> LockRecordsAsync(
         Option<TKey> firstId,
         Option<TKey> secondId,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
         switch (firstId.HasValue, secondId.HasValue)
         {
@@ -35,15 +37,15 @@ public class SharedIndexScope<TKey, TRecord, TProjection>(
                 return new(null, null);
 
             case (true, false):
-                return new(await LockRecordAsync(firstId.Value!, ct), null);
+                return new(await LockRecordAsync(firstId.Value!, cancellationToken), null);
 
             case (false, true):
-                return new(null, await LockRecordAsync(secondId.Value!, ct));
+                return new(null, await LockRecordAsync(secondId.Value!, cancellationToken));
 
             case (true, true):
                 if (context.KeyEqualityComparer.Equals(firstId.Value!, secondId.Value!))
                 {
-                    var scope = await LockRecordAsync(firstId.Value!, ct);
+                    var scope = await LockRecordAsync(firstId.Value!, cancellationToken);
                     return new(scope, scope);
                 }
 
@@ -55,8 +57,8 @@ public class SharedIndexScope<TKey, TRecord, TProjection>(
                     var (lowerId, higherId) = firstIdIsLower
                         ? (firstId.Value!, secondId.Value!)
                         : (secondId.Value!, firstId.Value!);
-                    lowerScope = await LockRecordAsync(lowerId, ct);
-                    higherScope = await LockRecordAsync(higherId, ct);
+                    lowerScope = await LockRecordAsync(lowerId, cancellationToken);
+                    higherScope = await LockRecordAsync(higherId, cancellationToken);
 
                     return firstIdIsLower
                         ? new(lowerScope, higherScope)

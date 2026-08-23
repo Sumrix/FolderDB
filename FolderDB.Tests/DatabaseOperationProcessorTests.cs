@@ -489,30 +489,30 @@ public class DatabaseOperationProcessorTests
         public Task<FileWriteResult> WriteAsync(
             string path,
             Func<Stream, Task> writeAction,
-            CancellationToken ct)
+            CancellationToken cancellationToken)
         {
             var ex = WriteExceptionFactory?.Invoke(path);
             return ex is null
-                ? inner.WriteAsync(path, writeAction, ct)
+                ? inner.WriteAsync(path, writeAction, cancellationToken)
                 : Task.FromResult(new FileWriteResult(null, ToFileError(ex)));
         }
 
-        public Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken ct)
+        public Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken cancellationToken)
         {
             var ex = ReadExceptionFactory?.Invoke(path);
             return ex is null
-                ? inner.ReadAsync(path, parseAction, ct)
+                ? inner.ReadAsync(path, parseAction, cancellationToken)
                 : Task.FromResult(new FileReadResult<T>(
                     default,
                     inner.GetFileFingerprint(path),
                     ToFileError(ex)));
         }
 
-        public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken ct)
+        public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken)
         {
             var ex = DeleteExceptionFactory?.Invoke(path);
             return ex is null
-                ? inner.DeleteAsync(path, ct)
+                ? inner.DeleteAsync(path, cancellationToken)
                 : Task.FromResult(new FileDeleteResult(ToFileError(ex)));
         }
 

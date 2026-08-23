@@ -8,12 +8,12 @@ public sealed class RecordStore<TKey, TRecord>(
     IRecordCodec<TKey, TRecord> codec,
     IFileStore store)
 {
-    public Task<FileReadResult<RecordDecodeResult<TRecord>>> ReadAsync(string path, CancellationToken ct)
-        => store.ReadAsync(path, stream => codec.DecodeAsync(stream, ct), ct);
+    public Task<FileReadResult<RecordDecodeResult<TRecord>>> ReadAsync(string path, CancellationToken cancellationToken)
+        => store.ReadAsync(path, stream => codec.DecodeAsync(stream, cancellationToken), cancellationToken);
 
-    public Task<FileWriteResult> WriteAsync(string filePath, TRecord record, CancellationToken ct)
-        => store.WriteAsync(filePath, stream => codec.EncodeAsync(stream, record, ct), ct);
+    public Task<FileWriteResult> WriteAsync(string filePath, TRecord record, CancellationToken cancellationToken)
+        => store.WriteAsync(filePath, stream => codec.EncodeAsync(stream, record, cancellationToken), cancellationToken);
 
-    public Task<FileDeleteResult> DeleteAsync(string filePath, CancellationToken ct)
-        => store.DeleteAsync(filePath, ct);
+    public Task<FileDeleteResult> DeleteAsync(string filePath, CancellationToken cancellationToken)
+        => store.DeleteAsync(filePath, cancellationToken);
 }

@@ -33,9 +33,9 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     private readonly ILogger<DatabaseOperationProcessor<TKey, TRecord, TProjection>> _logger =
         logger ?? NullLogger<DatabaseOperationProcessor<TKey, TRecord, TProjection>>.Instance;
 
-    public async Task<TRecord?> GetAsync(TKey id, CancellationToken ct = default)
+    public async Task<TRecord?> GetAsync(TKey id, CancellationToken cancellationToken = default)
     {
-        var result = await TryGetAsync(id, ct);
+        var result = await TryGetAsync(id, cancellationToken);
         if (!result.IsSuccess)
         {
             ThrowOperationFailed("get", id, result);
@@ -44,29 +44,29 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         return result.Record;
     }
 
-    public async Task UpsertAsync(TRecord record, CancellationToken ct = default)
+    public async Task UpsertAsync(TRecord record, CancellationToken cancellationToken = default)
     {
-        var result = await TryUpsertAsync(record, ct);
+        var result = await TryUpsertAsync(record, cancellationToken);
         if (!result.IsSuccess)
         {
             ThrowOperationFailed("upsert", record.Id, result);
         }
     }
 
-    public async Task DeleteAsync(TKey id, CancellationToken ct = default)
+    public async Task DeleteAsync(TKey id, CancellationToken cancellationToken = default)
     {
-        var result = await TryDeleteAsync(id, ct);
+        var result = await TryDeleteAsync(id, cancellationToken);
         if (!result.IsSuccess)
         {
             ThrowOperationFailed("delete", id, result);
         }
     }
 
-    public async Task<ReadResult<TRecord>> TryGetAsync(TKey id, CancellationToken ct = default)
+    public async Task<ReadResult<TRecord>> TryGetAsync(TKey id, CancellationToken cancellationToken = default)
     {
         using var _ = _logger.BeginMethodScope();
-        using var sharedIndexScope = await index.EnterSharedScopeAsync(ct);
-        using var recordScope = await sharedIndexScope.LockRecordAsync(id, ct);
+        using var sharedIndexScope = await index.EnterSharedScopeAsync(cancellationToken);
+        using var recordScope = await sharedIndexScope.LockRecordAsync(id, cancellationToken);
 
         if (!recordScope.TryGetState(out var recordState))
         {
@@ -76,14 +76,14 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
 
         var fileName = recordState.CurrentFileName;
         var filePath = Path.Combine(tablePath, fileName);
-        var readResult = await store.ReadAsync(filePath, ct);
+        var readResult = await store.ReadAsync(filePath, cancellationToken);
 
         var retryDecision = await fileReconciler.ContinueAfterReadAsync(
             filePath,
             sharedIndexScope,
             recordScope,
             readResult,
-            ct);
+            cancellationToken);
         if (retryDecision != RetryDecision.Complete)
         {
             requestFileReconcile(filePath, retryDecision == RetryDecision.RetryWithMinBackoff);
@@ -115,22 +115,22 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         return new ReadResult<TRecord>(record, null, fileName);
     }
 
-    public async Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken ct = default)
+    public async Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
 
         using var _ = _logger.BeginMethodScope();
-        using var sharedIndexScope = await index.EnterSharedScopeAsync(ct);
-        using var recordScope = await sharedIndexScope.LockRecordAsync(record.Id, ct);
+        using var sharedIndexScope = await index.EnterSharedScopeAsync(cancellationToken);
+        using var recordScope = await sharedIndexScope.LockRecordAsync(record.Id, cancellationToken);
 
         if (!recordScope.TryGetState(out var recordState))
         {
-            return await InsertAsync(recordScope, record, ct);
+            return await InsertAsync(recordScope, record, cancellationToken);
         }
 
         var fileName = recordState.CurrentFileName;
         var currentPath = Path.Combine(tablePath, fileName);
-        var writeResult = await store.WriteAsync(currentPath, record, ct);
+        var writeResult = await store.WriteAsync(currentPath, record, cancellationToken);
 
         if (writeResult.Error != null)
         {
@@ -158,11 +158,11 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         return new OperationResult(null, fileName);
     }
 
-    public async Task<OperationResult> TryDeleteAsync(TKey id, CancellationToken ct = default)
+    public async Task<OperationResult> TryDeleteAsync(TKey id, CancellationToken cancellationToken = default)
     {
         using var _ = _logger.BeginMethodScope();
-        using var sharedIndexScope = await index.EnterSharedScopeAsync(ct);
-        using var recordScope = await sharedIndexScope.LockRecordAsync(id, ct);
+        using var sharedIndexScope = await index.EnterSharedScopeAsync(cancellationToken);
+        using var recordScope = await sharedIndexScope.LockRecordAsync(id, cancellationToken);
 
         if (!recordScope.TryGetState(out var recordState))
         {
@@ -173,10 +173,10 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         var fileNames = recordState.Files.Keys.ToArray();
         foreach (var fileName in fileNames)
         {
-            ct.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested();
 
             var filePath = Path.Combine(tablePath, fileName);
-            var deleteResult = await store.DeleteAsync(filePath, ct);
+            var deleteResult = await store.DeleteAsync(filePath, cancellationToken);
             if (deleteResult.Error != null)
             {
                 _logger.LogError(
@@ -220,7 +220,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     private async Task<OperationResult> InsertAsync(
         RecordScope<TKey, TRecord, TProjection> recordScope,
         TRecord record,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         using var iterator = CreateFileNameIterator(record);
         for (var attempt = 0; attempt < _maxFileNameReserveAttempts; attempt++)
@@ -242,7 +242,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
 
                 // This can overwrite a disk-only file with the same name, which is acceptable because
                 // the file system is not lockable by FolderDB and can change at any time.
-                var writeResult = await store.WriteAsync(reservedPath, record, ct);
+                var writeResult = await store.WriteAsync(reservedPath, record, cancellationToken);
                 if (writeResult.Error != null)
                 {
                     recordScope.DeleteFile(reservedFileName);
@@ -261,7 +261,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
                     throw new InvalidOperationException($"Failed to commit reserved file name for record id '{record.Id}'.");
                 }
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 recordScope.DeleteFile(reservedFileName);
                 throw;

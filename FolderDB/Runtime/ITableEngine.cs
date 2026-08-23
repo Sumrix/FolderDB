@@ -7,5 +7,5 @@ namespace FolderDB.Runtime;
 public interface ITableEngine : IAsyncDisposable
 {
     void RequestDirectoryReconcile();
-    Task FlushAsync(CancellationToken ct = default);
+    Task FlushAsync(CancellationToken cancellationToken = default);
 }

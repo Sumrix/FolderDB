@@ -74,7 +74,7 @@ public class TimeBucketQueueManagerTests
 
         public int Attempts => Volatile.Read(ref _attempts);
 
-        public Task<RetryDecision> ProcessAsync(string value, CancellationToken ct)
+        public Task<RetryDecision> ProcessAsync(string value, CancellationToken cancellationToken)
         {
             var attempt = Interlocked.Increment(ref _attempts);
 

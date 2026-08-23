@@ -20,5 +20,5 @@ public interface ITableDefinition
         IRetryScheduler<string> retryScheduler,
         DatabaseOptions options,
         ILoggerFactory loggerFactory,
-        CancellationToken ct = default);
+        CancellationToken cancellationToken = default);
 }
