@@ -38,7 +38,7 @@ internal sealed class DatabaseFactory
         _resources = CreateResources(options);
     }
 
-    public static async Task<FolderDatabase> StartDatabaseAsync(
+    public static async Task<FolderDatabase> OpenDatabaseAsync(
         string path,
         IReadOnlyList<ITableDefinition> tableDefinitions,
         DatabaseOptions? options,
@@ -86,7 +86,7 @@ internal sealed class DatabaseFactory
 
         using var _ = logger.BeginMethodScope();
 
-        logger.LogTrace("Starting: path=\"{RootPath}\"", factory.RootPath);
+        logger.LogTrace("Opening: path=\"{RootPath}\"", factory.RootPath);
         PathWatcher? rootPathWatcher = null;
 
         try
@@ -119,13 +119,13 @@ internal sealed class DatabaseFactory
                 enginesByDirectoryName,
                 rootPathWatcher);
 
-            logger.LogDebug("Started: path=\"{RootPath}\"", factory.RootPath);
+            logger.LogDebug("Opened: path=\"{RootPath}\"", factory.RootPath);
 
             return database;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to start: path=\"{RootPath}\"", factory.RootPath);
+            logger.LogError(ex, "Failed to open: path=\"{RootPath}\"", factory.RootPath);
 
             DisposeHelper.SafeDispose(rootPathWatcher);
             foreach (var tableEngine in enginesByType.Values)
@@ -136,7 +136,7 @@ internal sealed class DatabaseFactory
         }
     }
 
-    public static async Task<FolderIndexedTable<TKey, TRecord, TProjection>> StartTableAsync<TKey, TRecord, TProjection>(
+    public static async Task<FolderIndexedTable<TKey, TRecord, TProjection>> OpenTableAsync<TKey, TRecord, TProjection>(
         string path,
         TableDefinition<TKey, TRecord, TProjection> definition,
         DatabaseOptions? options,
@@ -153,7 +153,7 @@ internal sealed class DatabaseFactory
 
         using var _ = logger.BeginMethodScope();
 
-        logger.LogTrace("Starting: path=\"{RootPath}\"", factory.RootPath);
+        logger.LogTrace("Opening: path=\"{RootPath}\"", factory.RootPath);
 
         TableEngine<TKey, TRecord, TProjection>? tableEngine = null;
 
@@ -174,13 +174,13 @@ internal sealed class DatabaseFactory
                 factory._resources,
                 tableEngine);
 
-            logger.LogDebug("Started: path=\"{RootPath}\"", factory.RootPath);
+            logger.LogDebug("Opened: path=\"{RootPath}\"", factory.RootPath);
 
             return table;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to start: path=\"{RootPath}\"", factory.RootPath);
+            logger.LogError(ex, "Failed to open: path=\"{RootPath}\"", factory.RootPath);
 
             await DisposeHelper.SafeDispose(tableEngine);
             factory._resources.Dispose();

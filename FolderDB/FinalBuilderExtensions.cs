@@ -7,7 +7,7 @@ namespace FolderDB;
 
 public static class FinalBuilderExtensions
 {
-    public static async Task<IFolderTable<TKey, TRecord>> StartAsync<TKey, TRecord>(
+    public static async Task<IFolderTable<TKey, TRecord>> OpenAsync<TKey, TRecord>(
         this FinalBuilder<TKey, TRecord, NoProjection> builder,
         string path,
         DatabaseOptions? options = null,
@@ -17,10 +17,10 @@ public static class FinalBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        return await FolderDatabase.StartTableAsync(path, builder.Build(), options, cancellationToken);
+        return await FolderDatabase.OpenTableAsync(path, builder.Build(), options, cancellationToken);
     }
 
-    public static async Task<IFolderIndexedTable<TKey, TRecord, TProjection>> StartIndexedAsync<TKey, TRecord, TProjection>(
+    public static async Task<IFolderIndexedTable<TKey, TRecord, TProjection>> OpenIndexedAsync<TKey, TRecord, TProjection>(
         this FinalBuilder<TKey, TRecord, TProjection> builder,
         string path,
         DatabaseOptions? options = null,
@@ -30,6 +30,6 @@ public static class FinalBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        return await FolderDatabase.StartIndexedTableAsync(path, builder.Build(), options, cancellationToken);
+        return await FolderDatabase.OpenIndexedTableAsync(path, builder.Build(), options, cancellationToken);
     }
 }

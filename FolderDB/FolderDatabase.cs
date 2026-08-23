@@ -51,16 +51,16 @@ public class FolderDatabase : IDatabase
     /// <exception cref="SecurityException">The caller does not have the required permissions.</exception>
     /// <exception cref="NotSupportedException">The path contains a format that is not supported.</exception>
     /// <exception cref="PathTooLongException">The specified path, file name, or both exceed the system-defined maximum length.</exception>
-    public static Task<FolderDatabase> StartAsync(
+    public static Task<FolderDatabase> OpenAsync(
         string path,
         IReadOnlyList<ITableDefinition> tableDefinitions,
         DatabaseOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return DatabaseFactory.StartDatabaseAsync(path, tableDefinitions, options, cancellationToken);
+        return DatabaseFactory.OpenDatabaseAsync(path, tableDefinitions, options, cancellationToken);
     }
 
-    public static async Task<IFolderTable<TKey, TRecord>> StartTableAsync<TKey, TRecord>(
+    public static async Task<IFolderTable<TKey, TRecord>> OpenTableAsync<TKey, TRecord>(
         string path,
         TableDefinition<TKey, TRecord, NoProjection> definition,
         DatabaseOptions? options = null,
@@ -68,10 +68,10 @@ public class FolderDatabase : IDatabase
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        return await DatabaseFactory.StartTableAsync(path, definition, options, cancellationToken);
+        return await DatabaseFactory.OpenTableAsync(path, definition, options, cancellationToken);
     }
 
-    public static async Task<IFolderIndexedTable<TKey, TRecord, TProjection>> StartIndexedTableAsync<TKey, TRecord, TProjection>(
+    public static async Task<IFolderIndexedTable<TKey, TRecord, TProjection>> OpenIndexedTableAsync<TKey, TRecord, TProjection>(
         string path,
         TableDefinition<TKey, TRecord, TProjection> definition,
         DatabaseOptions? options = null,
@@ -79,7 +79,7 @@ public class FolderDatabase : IDatabase
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        return await DatabaseFactory.StartTableAsync(path, definition, options, cancellationToken);
+        return await DatabaseFactory.OpenTableAsync(path, definition, options, cancellationToken);
     }
 
     public static IRetryScheduler<string> CreateDefaultRetryScheduler(
@@ -162,7 +162,7 @@ public class FolderDatabase : IDatabase
         {
             throw new InvalidOperationException(
                 $"No table is defined for record type '{typeof(TRecord)}'. " +
-                $"Pass its table definition to {nameof(FolderDatabase)}.{nameof(StartAsync)}.");
+                $"Pass its table definition to {nameof(FolderDatabase)}.{nameof(OpenAsync)}.");
         }
 
         if (tableEngine is not TTable table)
