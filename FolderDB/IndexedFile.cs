@@ -18,7 +18,7 @@ namespace FolderDB;
 /// <param name="FileName">
 /// The selected file name relative to the table directory.
 /// </param>
-public sealed record IndexEntry<TProjection>(
+public sealed record IndexedFile<TProjection>(
     TProjection? Projection,
     FileErrorInfo? ErrorInfo,
     string FileName);

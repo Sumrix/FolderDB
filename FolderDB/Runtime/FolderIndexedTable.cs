@@ -18,21 +18,21 @@ public class FolderIndexedTable<TKey, TRecord, TProjection> :
 
     public string RootPath { get; }
 
-    public IReadOnlyDictionary<TKey, TProjection> Index
+    public IReadOnlyDictionary<TKey, TProjection> Projections
     {
         get
         {
             ThrowIfDisposed();
-            return _engine.Index;
+            return _engine.Projections;
         }
     }
 
-    public IReadOnlyDictionary<TKey, IndexEntry<TProjection>> Entries
+    public IReadOnlyDictionary<TKey, IndexedFile<TProjection>> Files
     {
         get
         {
             ThrowIfDisposed();
-            return _engine.Entries;
+            return _engine.Files;
         }
     }
 

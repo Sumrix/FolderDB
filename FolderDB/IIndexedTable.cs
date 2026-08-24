@@ -10,10 +10,10 @@ public interface IIndexedTable<TKey, TRecord, TProjection> : ITable<TKey, TRecor
     /// <summary>
     /// Gets the committed projection view. Unavailable, invalid, and reserved files are excluded.
     /// </summary>
-    IReadOnlyDictionary<TKey, TProjection> Index { get; }
+    IReadOnlyDictionary<TKey, TProjection> Projections { get; }
 
     /// <summary>
     /// Gets the full index, including records whose files are currently unavailable or invalid.
     /// </summary>
-    IReadOnlyDictionary<TKey, IndexEntry<TProjection>> Entries { get; }
+    IReadOnlyDictionary<TKey, IndexedFile<TProjection>> Files { get; }
 }

@@ -31,13 +31,13 @@ public class TableEngine<TKey, TRecord, TProjection> :
     private readonly DirectoryReconciler<TKey, TRecord, TProjection> _directoryReconciler;
     private readonly DatabaseOperationProcessor<TKey, TRecord, TProjection> _processor;
     private readonly PathWatcher _watcher;
-    private readonly IReadOnlyDictionary<TKey, IndexEntry<TProjection>> _indexEntries;
+    private readonly IReadOnlyDictionary<TKey, IndexedFile<TProjection>> _indexedFiles;
     private readonly IReadOnlyDictionary<TKey, TProjection> _projections;
 
     private bool _disposed;
 
-    public IReadOnlyDictionary<TKey, TProjection> Index => _projections;
-    public IReadOnlyDictionary<TKey, IndexEntry<TProjection>> Entries => _indexEntries;
+    public IReadOnlyDictionary<TKey, TProjection> Projections => _projections;
+    public IReadOnlyDictionary<TKey, IndexedFile<TProjection>> Files => _indexedFiles;
 
     private TableEngine(
         string tablePath,
@@ -55,8 +55,8 @@ public class TableEngine<TKey, TRecord, TProjection> :
         _directoryReconciler = directoryReconciler;
         _processor = processor;
         _watcher = watcher;
-        _indexEntries = new MappedDictionaryView<TKey, IReadOnlyRecordIndexState<TKey, TProjection>, IndexEntry<TProjection>>(
-            _index.Records, TryCreateIndexEntry);
+        _indexedFiles = new MappedDictionaryView<TKey, IReadOnlyRecordIndexState<TKey, TProjection>, IndexedFile<TProjection>>(
+            _index.Records, TryCreateIndexedFile);
         _projections = new MappedDictionaryView<TKey, IReadOnlyRecordIndexState<TKey, TProjection>, TProjection>(
             _index.Records, TryCreateProjection);
     }
@@ -295,18 +295,18 @@ public class TableEngine<TKey, TRecord, TProjection> :
         return false;
     }
 
-    private static bool TryCreateIndexEntry(
+    private static bool TryCreateIndexedFile(
         IReadOnlyRecordIndexState<TKey, TProjection> record,
-        [MaybeNullWhen(false)] out IndexEntry<TProjection> entry)
+        [MaybeNullWhen(false)] out IndexedFile<TProjection> file)
     {
         var fileState = record.GetCurrentFileState();
         if (fileState.Status != FileIndexStatus.Reserved)
         {
-            entry = new(fileState.Projection, fileState.ErrorInfo, record.CurrentFileName);
+            file = new(fileState.Projection, fileState.ErrorInfo, record.CurrentFileName);
             return true;
         }
 
-        entry = null;
+        file = null;
         return false;
     }
 }

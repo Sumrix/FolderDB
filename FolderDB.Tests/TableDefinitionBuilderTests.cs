@@ -223,8 +223,8 @@ public class TableDefinitionBuilderTests
         public IReadOnlyDictionary<string, IReadOnlyFileIndexState<TKey, TProjection>> Files { get; } =
             new Dictionary<string, IReadOnlyFileIndexState<TKey, TProjection>>();
         public IReadOnlyDictionary<TKey, TProjection> CurrentProjections { get; } = new Dictionary<TKey, TProjection>();
-        public IReadOnlyDictionary<TKey, IndexEntry<TProjection>> IndexEntries { get; } =
-            new Dictionary<TKey, IndexEntry<TProjection>>();
+        public IReadOnlyDictionary<TKey, IndexedFile<TProjection>> IndexedFiles { get; } =
+            new Dictionary<TKey, IndexedFile<TProjection>>();
         public AsyncReaderWriterLock Barrier { get; } = new();
         public StripedAsyncLock<TKey> IdLocks { get; } = new(1, EqualityComparer<TKey>.Default);
 
