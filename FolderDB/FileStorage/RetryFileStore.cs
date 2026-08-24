@@ -70,8 +70,18 @@ public sealed class RetryFileStore(
             cancellationToken.ThrowIfCancellationRequested();
 
             var result = await action();
-            if (result.Error?.Persistence != FileErrorPersistence.Transient || attempt >= options.MaxAttempts)
+            if (result.Error?.Persistence != FileErrorPersistence.Transient)
                 return result;
+
+            if (attempt >= options.MaxAttempts)
+            {
+                _logger.LogError(
+                    "Retries exhausted: path=\"{Path}\" attempts={Attempts} errorReason={ErrorReason}",
+                    path,
+                    attempt,
+                    result.Error.Reason);
+                return result;
+            }
 
             var delay = GetDelay(options, attempt);
 
