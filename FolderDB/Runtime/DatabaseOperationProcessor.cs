@@ -36,10 +36,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     public async Task<TRecord?> GetAsync(TKey id, CancellationToken cancellationToken = default)
     {
         var result = await TryGetAsync(id, cancellationToken);
-        if (!result.IsSuccess)
-        {
-            ThrowOperationFailed("get", id, result);
-        }
+        ThrowIfFailed(result);
 
         return result.Record;
     }
@@ -47,23 +44,19 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     public async Task UpsertAsync(TRecord record, CancellationToken cancellationToken = default)
     {
         var result = await TryUpsertAsync(record, cancellationToken);
-        if (!result.IsSuccess)
-        {
-            ThrowOperationFailed("upsert", record.Id, result);
-        }
+        ThrowIfFailed(result);
     }
 
     public async Task DeleteAsync(TKey id, CancellationToken cancellationToken = default)
     {
         var result = await TryDeleteAsync(id, cancellationToken);
-        if (!result.IsSuccess)
-        {
-            ThrowOperationFailed("delete", id, result);
-        }
+        ThrowIfFailed(result);
     }
 
     public async Task<ReadResult<TRecord>> TryGetAsync(TKey id, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(id);
+
         using var _ = _logger.BeginMethodScope();
         using var sharedIndexScope = await index.EnterSharedScopeAsync(cancellationToken);
         using var recordScope = await sharedIndexScope.LockRecordAsync(id, cancellationToken);
@@ -118,6 +111,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     public async Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
+        ArgumentNullException.ThrowIfNull(record.Id);
 
         using var _ = _logger.BeginMethodScope();
         using var sharedIndexScope = await index.EnterSharedScopeAsync(cancellationToken);
@@ -160,6 +154,8 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
 
     public async Task<OperationResult> TryDeleteAsync(TKey id, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(id);
+
         using var _ = _logger.BeginMethodScope();
         using var sharedIndexScope = await index.EnterSharedScopeAsync(cancellationToken);
         using var recordScope = await sharedIndexScope.LockRecordAsync(id, cancellationToken);
@@ -206,15 +202,16 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         return new OperationResult(null, fileNames[0]);
     }
 
-    private static void ThrowOperationFailed(string operation, TKey id, OperationResult result)
+    private static void ThrowIfFailed(OperationResult result)
     {
-        if (result.Error?.Exception is not null)
+        if (!result.IsSuccess)
         {
-            throw result.Error.Exception;
+            throw new FileOperationException(
+                $"File operation failed: reason={result.Error.Reason} persistence={result.Error.Persistence} file=\"{result.FileName}\"",
+                result.Error.Reason,
+                result.Error.Persistence,
+                result.Error.Exception);
         }
-
-        throw new InvalidOperationException(
-            $"Failed to {operation} record id '{id}'. Error: {result.ErrorReason}.");
     }
 
     private async Task<OperationResult> InsertAsync(
@@ -227,7 +224,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         {
             if (!MoveNextFileNameCandidate(record.Id, iterator))
             {
-                throw new InvalidOperationException($"Unable to reserve a file name for record id '{record.Id}'.");
+                throw new FileNameGenerationException($"Unable to reserve a file name for record id '{record.Id}'.");
             }
 
             var reservedFileName = BuildFileName(record.Id, iterator.Current);
@@ -277,7 +274,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
             return new OperationResult(null, reservedFileName);
         }
 
-        throw new InvalidOperationException(
+        throw new FileNameGenerationException(
             $"Unable to reserve a file name for record id '{record.Id}' after {_maxFileNameReserveAttempts} attempts.");
     }
 
@@ -299,14 +296,6 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         try
         {
             return iterator.MoveNext();
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (FileNameGenerationException)
-        {
-            throw;
         }
         catch (Exception ex)
         {

@@ -58,7 +58,7 @@ public class DatabaseOperationProcessorTests
     }
 
     [Fact]
-    public async Task GetAsync_WhenDecodeFails_ThrowsOriginalException()
+    public async Task GetAsync_WhenDecodeFails_ThrowsFileOperationExceptionKeepingOriginalCause()
     {
         await using var ctx = await TestContext.CreateAsync();
         await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
@@ -66,7 +66,11 @@ public class DatabaseOperationProcessorTests
         var fileName = await ctx.GetCurrentFileNameAsync("id-1");
         await File.WriteAllTextAsync(Path.Combine(ctx.TablePath, fileName), "{ invalid json");
 
-        await Assert.ThrowsAnyAsync<JsonException>(() => ctx.Processor.GetAsync("id-1"));
+        var exception = await Assert.ThrowsAsync<FileOperationException>(() => ctx.Processor.GetAsync("id-1"));
+
+        Assert.Equal(FileErrorReason.Invalid, exception.Reason);
+        var conversion = Assert.IsType<RecordConversionException>(exception.InnerException);
+        Assert.IsAssignableFrom<JsonException>(conversion.InnerException);
     }
 
     [Fact]
@@ -195,7 +199,11 @@ public class DatabaseOperationProcessorTests
         await using var ctx = await TestContext.CreateAsync();
         ctx.FileStore.WriteExceptionFactory = _ => new IOException("write failure");
 
-        await Assert.ThrowsAsync<IOException>(() => ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value")));
+        var exception = await Assert.ThrowsAsync<FileOperationException>(
+            () => ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value")));
+
+        Assert.Equal(FileErrorReason.Unavailable, exception.Reason);
+        Assert.IsType<IOException>(exception.InnerException);
 
         await ctx.AssertIndexEmptyAsync();
     }

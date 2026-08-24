@@ -12,7 +12,10 @@ public class ChainedUpgrader<TFrom, TNext, TCurrent>(
 {
     public TCurrent Upgrade(TFrom record)
     {
-        var next = upgradeFunction(record);
+        var next = upgradeFunction(record)
+            ?? throw new RecordConversionException(
+                $"Upgrade returned null: expected={expectedVersion}, type={typeof(TNext).Name}.");
+
         if (next.SchemaVersion != expectedVersion)
         {
             throw new RecordConversionException(

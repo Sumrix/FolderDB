@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using FolderDB.Infrastructure.Exceptions;
@@ -8,9 +9,22 @@ public class DirectRecordDecoder<TRecord>(JsonTypeInfo<TRecord> jsonTypeInfo) : 
 {
     public RecordDecodeResult<TRecord> Decode(JsonDocument document)
     {
-        var record = document.Deserialize(jsonTypeInfo)
-            ?? throw new RecordConversionException($"Failed to deserialize JSON to {typeof(TRecord).Name}.");
+        try
+        {
+            var record = document.Deserialize(jsonTypeInfo)
+                ?? throw new RecordConversionException($"Failed to deserialize JSON to {typeof(TRecord).Name}.");
 
-        return new RecordDecodeResult<TRecord>(false, null, null, record);
+            return new RecordDecodeResult<TRecord>(false, null, null, record);
+        }
+        catch (RecordConversionException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new RecordConversionException(
+                $"Failed to convert record to {typeof(TRecord).Name}.",
+                inner: ex);
+        }
     }
 }
