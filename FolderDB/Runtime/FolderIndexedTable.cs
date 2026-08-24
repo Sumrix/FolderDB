@@ -82,7 +82,7 @@ public class FolderIndexedTable<TKey, TRecord, TProjection> :
         return _engine.TryDeleteAsync(id, cancellationToken);
     }
 
-    public Task FlushAsync(CancellationToken cancellationToken = default)
+    public Task FlushIndexAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         return _engine.FlushAsync(cancellationToken);

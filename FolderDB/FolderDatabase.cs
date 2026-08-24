@@ -116,7 +116,7 @@ public class FolderDatabase : IDatabase
         return GetTable<TRecord, IIndexedTable<TKey, TRecord, TProjection>>();
     }
 
-    public async Task FlushAsync(CancellationToken cancellationToken = default)
+    public async Task FlushIndexAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
