@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using FolderDB.Infrastructure.Exceptions;
 
@@ -10,6 +11,18 @@ public class RecordDecoder<TFrom, TCurrent>(
     JsonTypeInfo<TFrom> typeInfo)
     : IRecordDecoder<TCurrent>
 {
+    /// <exception cref="RecordConversionException">
+    /// <typeparamref name="TFrom"/> is not compatible with the JSON.
+    ///
+    /// -or-
+    ///
+    /// There is no compatible <see cref="JsonConverter"/> for <typeparamref name="TFrom"/> or its
+    /// serializable members.
+    ///
+    /// -or-
+    ///
+    /// The upgrade to <typeparamref name="TCurrent"/> failed.
+    /// </exception>
     public TCurrent Decode(JsonDocument document)
     {
         try

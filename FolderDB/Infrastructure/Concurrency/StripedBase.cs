@@ -19,6 +19,12 @@ public abstract class StripedBase<TKey, TStripe>
     private readonly IEqualityComparer<TKey> _comparer;
     private readonly int _stripeMask;
 
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="stripeCountPow2"/> is less than or equal to zero.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="stripeCountPow2"/> is not a power of two.
+    /// </exception>
     protected StripedBase(
         int stripeCountPow2,
         Func<TStripe> stripeFactory,

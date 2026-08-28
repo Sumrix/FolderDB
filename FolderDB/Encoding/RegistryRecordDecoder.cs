@@ -8,6 +8,18 @@ public class RegistryRecordDecoder<TRecord>(IReadOnlyDictionary<int, IRecordDeco
     : ISchemaAwareRecordDecoder<TRecord>
     where TRecord : class, IVersionedRecord
 {
+    /// <exception cref="RecordConversionException">
+    /// <paramref name="document"/> does not contain a valid
+    /// <see cref="IVersionedRecord.SchemaVersion"/> property.
+    ///
+    /// -or-
+    ///
+    /// No decoder is registered for the schema version of <paramref name="document"/>.
+    ///
+    /// -or-
+    ///
+    /// <paramref name="document"/> cannot be converted to <typeparamref name="TRecord"/>.
+    /// </exception>
     public RecordDecodeResult<TRecord> Decode(JsonDocument document)
     {
         if (document.RootElement.ValueKind == JsonValueKind.Object &&
@@ -28,6 +40,9 @@ public class RegistryRecordDecoder<TRecord>(IReadOnlyDictionary<int, IRecordDeco
             $"Record does not contain a valid {nameof(IVersionedRecord.SchemaVersion)} property.");
     }
 
+    /// <exception cref="RecordConversionException">
+    /// No decoder is registered for schema version <paramref name="version"/>.
+    /// </exception>
     private IRecordDecoder<TRecord> GetDecoder(int version)
     {
         if (!decoders.TryGetValue(version, out var decoder))

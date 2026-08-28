@@ -4,25 +4,40 @@ using FolderDB.FileStorage;
 namespace FolderDB;
 
 /// <summary>
-/// Describes the result of a file-aware table operation.
+/// Represents the outcome of a table operation.
 /// </summary>
 /// <param name="Error">
-/// The file error observed by the operation, or <see langword="null"/> when no file error occurred.
+/// The file error observed by the operation, or <see langword="null"/> if the operation succeeded.
 /// </param>
 /// <param name="FileName">
-/// The file name relative to the table directory, or <see langword="null"/> when no file is associated with the result.
+/// The name of the file in the table directory, or <see langword="null"/> if no file is
+/// associated with the result.
 /// </param>
 public record OperationResult(
     FileError? Error = null,
     string? FileName = null)
 {
+    /// <summary>
+    /// Gets a value indicating whether the operation completed without a file error.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> if the operation completed without a file error; otherwise,
+    /// <see langword="false"/>.
+    /// </returns>
     [MemberNotNullWhen(false, nameof(Error))]
     public bool IsSuccess => Error is null;
 
+    /// <summary>
+    /// Gets the reason FolderDB classified the file error.
+    /// </summary>
+    /// <returns>
+    /// The reason of <see cref="Error"/>, or <see langword="null"/> if the operation succeeded.
+    /// </returns>
     public FileErrorReason? ErrorReason => Error?.Reason;
 
     /// <summary>
     /// Gets a successful operation result.
     /// </summary>
+    /// <returns>The successful operation result.</returns>
     public static OperationResult Success { get; } = new();
 }

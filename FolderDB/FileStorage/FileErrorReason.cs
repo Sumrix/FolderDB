@@ -6,12 +6,12 @@ namespace FolderDB.FileStorage;
 public enum FileErrorReason
 {
     /// <summary>
-    /// FolderDB could not read, write, delete, or otherwise access the file.
+    /// The file could not be read, written, deleted, or otherwise accessed.
     /// </summary>
     Unavailable,
 
     /// <summary>
-    /// FolderDB accessed the file, but the content could not be decoded or written as a valid record.
+    /// The file was accessed, but its content could not be decoded or written as a valid record.
     /// </summary>
     Invalid
 }

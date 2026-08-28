@@ -26,6 +26,12 @@ internal sealed class DatabaseFactory
 
     private ILoggerFactory LoggerFactory => _options.LoggerFactory ?? NullLoggerFactory.Instance;
 
+    /// <exception cref="ArgumentNullException"><paramref name="rootPath"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">A configured factory returned null.</exception>
+    /// <remarks>
+    /// Also exceptions from:
+    /// <see cref="Path.GetFullPath(string)"/>.
+    /// </remarks>
     private DatabaseFactory(string rootPath, DatabaseOptions? options)
     {
         ArgumentNullException.ThrowIfNull(rootPath);
@@ -38,6 +44,37 @@ internal sealed class DatabaseFactory
         _resources = CreateResources(options);
     }
 
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="path"/> or <paramref name="tableDefinitions"/> is <see langword="null"/>.
+    ///
+    /// -or-
+    ///
+    /// <paramref name="tableDefinitions"/> contains a <see langword="null"/> definition.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="tableDefinitions"/> contains a definition with an invalid name, or two
+    /// definitions that collide by name or by record type.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="tableDefinitions"/> contains a definition with a <see langword="null"/> value.
+    ///
+    /// -or-
+    ///
+    /// A factory configured in <paramref name="options"/> or on <paramref name="tableDefinitions"/> returned
+    /// <see langword="null"/>.
+    ///
+    /// -or-
+    ///
+    /// A definition provides neither an index persistence nor an index engine factory.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
+    /// <remarks>
+    /// Also exceptions from:
+    /// <see cref="Path.GetFullPath(string)"/>,
+    /// <see cref="Directory.CreateDirectory(string)"/>,
+    /// <see cref="PathWatcher(string, string, ILogger{PathWatcher})"/>,
+    /// <see cref="PathWatcher.EnableRaisingEvents"/>.
+    /// </remarks>
     public static async Task<FolderDatabase> OpenDatabaseAsync(
         string path,
         IReadOnlyList<ITableDefinition> tableDefinitions,
@@ -136,6 +173,32 @@ internal sealed class DatabaseFactory
         }
     }
 
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="path"/> or <paramref name="definition"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="definition"/> has an invalid name.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="definition"/> contains a <see langword="null"/> value.
+    ///
+    /// -or-
+    ///
+    /// A factory configured in <paramref name="options"/> or on <paramref name="definition"/> returned
+    /// <see langword="null"/>.
+    ///
+    /// -or-
+    ///
+    /// <paramref name="definition"/> provides neither an index persistence nor an index engine factory.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
+    /// <remarks>
+    /// Also exceptions from:
+    /// <see cref="Path.GetFullPath(string)"/>,
+    /// <see cref="Directory.CreateDirectory(string)"/>,
+    /// <see cref="PathWatcher(string, string, ILogger{PathWatcher})"/>,
+    /// <see cref="PathWatcher.EnableRaisingEvents"/>.
+    /// </remarks>
     public static async Task<FolderIndexedTable<TKey, TRecord, TProjection>> OpenTableAsync<TKey, TRecord, TProjection>(
         string path,
         TableDefinition<TKey, TRecord, TProjection> definition,
@@ -189,6 +252,13 @@ internal sealed class DatabaseFactory
         }
     }
 
+    /// <exception cref="ArgumentException">
+    /// The definition returned a null or empty name.
+    ///
+    /// -or-
+    ///
+    /// The definition returned a name that sanitizes to the reserved index directory name.
+    /// </exception>
     private static string GetTableDirectoryName(ITableDefinition tableDefinition, string paramName)
     {
         if (string.IsNullOrEmpty(tableDefinition.Name))
@@ -210,6 +280,10 @@ internal sealed class DatabaseFactory
         return directoryName;
     }
 
+    /// <remarks>
+    /// Also exceptions from:
+    /// <see cref="Directory.CreateDirectory(string)"/>.
+    /// </remarks>
     private void CreateDirectories()
     {
         Directory.CreateDirectory(RootPath);
@@ -221,6 +295,28 @@ internal sealed class DatabaseFactory
         return Path.Combine(_indexDirectoryPath, $"{directoryName}.index.json");
     }
 
+    /// <exception cref="InvalidOperationException">
+    /// The definition returned no engine.
+    ///
+    /// -or-
+    ///
+    /// The definition contains a null value.
+    ///
+    /// -or-
+    ///
+    /// A factory configured on the definition or in the options returned null.
+    ///
+    /// -or-
+    ///
+    /// The definition provides neither an index persistence nor an index engine factory.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
+    /// <remarks>
+    /// Also exceptions from:
+    /// <see cref="Directory.CreateDirectory(string)"/>,
+    /// <see cref="PathWatcher(string, string, ILogger{PathWatcher})"/>,
+    /// <see cref="PathWatcher.EnableRaisingEvents"/>.
+    /// </remarks>
     private async Task<ITableEngine> StartEngineAsync(
         ITableDefinition tableDefinition,
         string tablePath,
@@ -245,6 +341,24 @@ internal sealed class DatabaseFactory
         return tableEngine;
     }
 
+    /// <exception cref="InvalidOperationException">
+    /// The definition contains a null value.
+    ///
+    /// -or-
+    ///
+    /// A factory configured on the definition or in the options returned null.
+    ///
+    /// -or-
+    ///
+    /// The definition provides neither an index persistence nor an index engine factory.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
+    /// <remarks>
+    /// Also exceptions from:
+    /// <see cref="Directory.CreateDirectory(string)"/>,
+    /// <see cref="PathWatcher(string, string, ILogger{PathWatcher})"/>,
+    /// <see cref="PathWatcher.EnableRaisingEvents"/>.
+    /// </remarks>
     private Task<TableEngine<TKey, TRecord, TProjection>> StartEngineAsync<TKey, TRecord, TProjection>(
         TableDefinition<TKey, TRecord, TProjection> tableDefinition,
         string tablePath,
@@ -274,6 +388,7 @@ internal sealed class DatabaseFactory
     {
         var effectiveOptions = options ?? new DefaultRetrySchedulerOptions();
 
+        // Never throws because the properties are validated on set
         return new TimeBucketQueueManager(
             interval: effectiveOptions.Interval,
             maxRetryIntervals: effectiveOptions.MaxRetryIntervals,

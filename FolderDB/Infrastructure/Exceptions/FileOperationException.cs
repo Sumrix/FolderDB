@@ -3,6 +3,18 @@ using FolderDB.FileStorage;
 
 namespace FolderDB.Infrastructure.Exceptions;
 
+/// <summary>
+/// The exception that is thrown when a file operation fails.
+/// </summary>
+/// <param name="message">The error message that explains the reason for the exception.</param>
+/// <param name="reason">The reason FolderDB classified the file error.</param>
+/// <param name="persistence">
+/// A value that indicates whether FolderDB classified the file error as temporary or persistent.
+/// </param>
+/// <param name="inner">
+/// The exception that is the cause of the current exception, or <see langword="null"/> if no inner
+/// exception is specified.
+/// </param>
 public class FileOperationException(
     string message,
     FileErrorReason reason,
@@ -16,8 +28,11 @@ public class FileOperationException(
     public FileErrorReason Reason { get; } = reason;
 
     /// <summary>
-    /// Gets whether FolderDB classified the file error as temporary or persistent.
+    /// Gets a value that indicates whether FolderDB classified the file error as temporary or
+    /// persistent.
     /// </summary>
-    /// <returns>Whether FolderDB classified the file error as temporary or persistent.</returns>
+    /// <returns>
+    /// A value that indicates whether FolderDB classified the file error as temporary or persistent.
+    /// </returns>
     public FileErrorPersistence Persistence { get; } = persistence;
 }

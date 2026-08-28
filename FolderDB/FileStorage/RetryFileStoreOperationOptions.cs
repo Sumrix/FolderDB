@@ -3,12 +3,24 @@ using FolderDB.Retry;
 
 namespace FolderDB.FileStorage;
 
+/// <summary>
+/// Provides retry options to be used with <see cref="RetryFileStoreOptions.Read"/>,
+/// <see cref="RetryFileStoreOptions.Write"/>, and <see cref="RetryFileStoreOptions.Delete"/>.
+/// </summary>
 public sealed class RetryFileStoreOperationOptions
 {
     private int _maxAttempts = 1;
     private TimeSpan _delay = TimeSpan.Zero;
     private double _backoffMultiplier = 1;
 
+    /// <summary>
+    /// Gets or sets the number of times the operation is attempted, including the first attempt.
+    /// </summary>
+    /// <returns>
+    /// The number of attempts. The default is 1, which indicates that the operation is not retried.
+    /// </returns>
+    /// <remarks>Only failures classified as transient are retried.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The value is less than 1.</exception>
     public int MaxAttempts
     {
         get => _maxAttempts;
@@ -19,6 +31,24 @@ public sealed class RetryFileStoreOperationOptions
         }
     }
 
+    /// <summary>
+    /// Gets or sets the base delay between attempts.
+    /// </summary>
+    /// <returns>
+    /// The base delay between attempts. The default is <see cref="TimeSpan.Zero"/>, which indicates
+    /// that the operation is retried immediately.
+    /// </returns>
+    /// <remarks>
+    /// The first retry waits this long, and every further one multiplies it by
+    /// <see cref="BackoffMultiplier"/>, but no single delay exceeds one day.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The value is negative.
+    ///
+    /// -or-
+    ///
+    /// The value is greater than one day.
+    /// </exception>
     public TimeSpan Delay
     {
         get => _delay;
@@ -30,6 +60,20 @@ public sealed class RetryFileStoreOperationOptions
         }
     }
 
+    /// <summary>
+    /// Gets or sets the factor <see cref="Delay"/> is multiplied by after each attempt.
+    /// </summary>
+    /// <returns>
+    /// The backoff factor. The default is 1, which indicates that every attempt is retried at the
+    /// same delay.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The value is less than 1.
+    ///
+    /// -or-
+    ///
+    /// The value is <see cref="double.NaN"/>.
+    /// </exception>
     public double BackoffMultiplier
     {
         get => _backoffMultiplier;
@@ -44,7 +88,11 @@ public sealed class RetryFileStoreOperationOptions
         }
     }
 
-    internal static RetryFileStoreOperationOptions CreateReadDefaults()
+    /// <summary>
+    /// Creates the retry settings that reads use by default.
+    /// </summary>
+    /// <returns>A new instance configured for reads.</returns>
+    public static RetryFileStoreOperationOptions CreateReadDefaults()
     {
         return new RetryFileStoreOperationOptions
         {
@@ -53,7 +101,11 @@ public sealed class RetryFileStoreOperationOptions
         };
     }
 
-    internal static RetryFileStoreOperationOptions CreateWriteDefaults()
+    /// <summary>
+    /// Creates the retry settings that writes and deletes use by default.
+    /// </summary>
+    /// <returns>A new instance configured for writes and deletes.</returns>
+    public static RetryFileStoreOperationOptions CreateWriteDefaults()
     {
         return new RetryFileStoreOperationOptions
         {

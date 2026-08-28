@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using FolderDB.Infrastructure.Exceptions;
@@ -13,6 +14,10 @@ public class RecordCodec<TKey, TRecord>(RecordSchema<TRecord> recordSchema)
 {
     public int? CurrentSchemaVersion => recordSchema.CurrentSchemaVersion;
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
+    /// <exception cref="RecordConversionException">
+    /// <paramref name="jsonStream"/> cannot be converted to <typeparamref name="TRecord"/>.
+    /// </exception>
     public async Task<RecordDecodeResult<TRecord>> DecodeAsync(Stream jsonStream, CancellationToken cancellationToken)
     {
         try
@@ -32,6 +37,11 @@ public class RecordCodec<TKey, TRecord>(RecordSchema<TRecord> recordSchema)
         }
     }
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
+    /// <exception cref="RecordConversionException">
+    /// There is no compatible <see cref="JsonConverter"/> for <typeparamref name="TRecord"/> or its
+    /// serializable members.
+    /// </exception>
     public async Task EncodeAsync(Stream jsonStream, TRecord record, CancellationToken cancellationToken)
     {
         try

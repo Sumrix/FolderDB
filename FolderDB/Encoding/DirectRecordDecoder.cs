@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using FolderDB.Infrastructure.Exceptions;
 
@@ -7,6 +8,14 @@ namespace FolderDB.Encoding;
 
 public class DirectRecordDecoder<TRecord>(JsonTypeInfo<TRecord> jsonTypeInfo) : ISchemaAwareRecordDecoder<TRecord>
 {
+    /// <exception cref="RecordConversionException">
+    /// <typeparamref name="TRecord"/> is not compatible with the JSON.
+    ///
+    /// -or-
+    ///
+    /// There is no compatible <see cref="JsonConverter"/> for <typeparamref name="TRecord"/> or its
+    /// serializable members.
+    /// </exception>
     public RecordDecodeResult<TRecord> Decode(JsonDocument document)
     {
         try

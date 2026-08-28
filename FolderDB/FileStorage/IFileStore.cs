@@ -12,10 +12,13 @@ namespace FolderDB.FileStorage;
 /// </summary>
 public interface IFileStore
 {
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken cancellationToken);
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     Task<FileWriteResult> WriteAsync(string path, Func<Stream, Task> writeAction, CancellationToken cancellationToken);
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken);
 
     FileFingerprint GetFileFingerprint(string path);

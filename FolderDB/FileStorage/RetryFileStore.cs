@@ -17,6 +17,7 @@ public sealed class RetryFileStore(
     private readonly RetryFileStoreOptions _options = options ?? RetryFileStoreOptions.Default;
     private readonly ILogger<RetryFileStore> _logger = logger ?? NullLogger<RetryFileStore>.Instance;
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<FileWriteResult> WriteAsync(
         string path,
         Func<Stream, Task> writeAction,
@@ -31,6 +32,7 @@ public sealed class RetryFileStore(
             cancellationToken);
     }
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken cancellationToken)
     {
         using var _ = _logger.BeginMethodScope();
@@ -42,6 +44,7 @@ public sealed class RetryFileStore(
             cancellationToken);
     }
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken)
     {
         using var _ = _logger.BeginMethodScope();
@@ -58,6 +61,7 @@ public sealed class RetryFileStore(
         return inner.GetFileFingerprint(path);
     }
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     private async Task<T> ExecuteWithRetryAsync<T>(
         string path,
         RetryFileStoreOperationOptions options,

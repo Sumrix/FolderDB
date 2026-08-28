@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Security;
 
 namespace FolderDB.Infrastructure.Helpers;
 
@@ -35,11 +34,10 @@ public static class PathHelper
         });
     }
 
-    /// <exception cref="ArgumentNullException">The path is null.</exception>
-    /// <exception cref="ArgumentException">The system could not retrieve the absolute path.</exception>
-    /// <exception cref="SecurityException">The caller does not have the required permissions.</exception>
-    /// <exception cref="NotSupportedException">The path contains a format that is not supported.</exception>
-    /// <exception cref="PathTooLongException">The specified path, file name, or both exceed the system-defined maximum length.</exception>
+    /// <remarks>
+    /// Also exceptions from:
+    /// <see cref="Path.GetFullPath(string)"/>.
+    /// </remarks>
     public static string NormalizePath(string path)
     {
         return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

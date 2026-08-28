@@ -10,6 +10,13 @@ public class ChainedUpgrader<TFrom, TNext, TCurrent>(
     : IRecordUpgrader<TFrom, TCurrent>
     where TNext : class, IVersionedRecord
 {
+    /// <exception cref="RecordConversionException">
+    /// The upgrade returned <see langword="null"/>.
+    ///
+    /// -or-
+    ///
+    /// The upgrade produced a record whose schema version is not the expected one.
+    /// </exception>
     public TCurrent Upgrade(TFrom record)
     {
         var next = upgradeFunction(record)

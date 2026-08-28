@@ -11,7 +11,8 @@ namespace FolderDB.FileStorage;
 public sealed class FileStore(ILogger<FileStore>? logger = null) : IFileStore
 {
     private readonly ILogger<FileStore> _logger = logger ?? NullLogger<FileStore>.Instance;
-    
+
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<FileReadResult<T>> ReadAsync<T>(string path, Func<Stream, Task<T>> parseAction, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -79,6 +80,7 @@ public sealed class FileStore(ILogger<FileStore>? logger = null) : IFileStore
         }
     }
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<FileWriteResult> WriteAsync(string path, Func<Stream, Task> writeAction, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -165,6 +167,7 @@ public sealed class FileStore(ILogger<FileStore>? logger = null) : IFileStore
         }
     }
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public Task<FileDeleteResult> DeleteAsync(string path, CancellationToken cancellationToken)
     {
         using var _ = _logger.BeginMethodScope();

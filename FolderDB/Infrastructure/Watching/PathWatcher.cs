@@ -13,6 +13,10 @@ public class PathWatcher : IDisposable
     private readonly ILogger<PathWatcher> _logger;
     private readonly string? _extensionFilter;
 
+    /// <remarks>
+    /// Also exceptions from:
+    /// <see cref="FileSystemWatcher.EnableRaisingEvents"/>.
+    /// </remarks>
     public bool EnableRaisingEvents
     {
         get => _watcher.EnableRaisingEvents;
@@ -22,6 +26,10 @@ public class PathWatcher : IDisposable
     public event EventHandler<string>? Changed;
     public event EventHandler<Exception>? Error;
 
+    /// <remarks>
+    /// Also exceptions from:
+    /// <see cref="FileSystemWatcher(string, string)"/>.
+    /// </remarks>
     public PathWatcher(string path, string? extensionFilter = null, ILogger<PathWatcher>? logger = null)
     {
         _logger = logger ?? NullLogger<PathWatcher>.Instance;

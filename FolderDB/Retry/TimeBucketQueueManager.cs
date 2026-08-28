@@ -19,6 +19,17 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
     private readonly BucketTimerScheduler _scheduler;
     private readonly ILogger<TimeBucketQueueManager> _logger;
 
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="interval"/> is less than one millisecond or greater than one day.
+    ///
+    /// -or-
+    ///
+    /// <paramref name="maxRetryIntervals"/> is zero or negative.
+    ///
+    /// -or-
+    ///
+    /// <paramref name="backoffMultiplier"/> is less than 1 or is <see cref="double.NaN"/>.
+    /// </exception>
     public TimeBucketQueueManager(
         TimeSpan interval,
         int maxRetryIntervals = 10,

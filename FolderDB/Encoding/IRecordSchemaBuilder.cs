@@ -20,9 +20,9 @@ public interface IRecordSchemaBuilder<TCurrent> : IRecordSchemaFinalBuilder<TCur
     /// <param name="upgrade">The function that converts the current record to the new record type.</param>
     /// <param name="options">The serializer options used to resolve <see cref="JsonTypeInfo{T}"/> for <typeparamref name="TTo"/>. If <see langword="null"/>, <see cref="JsonSerializerOptions.Default"/> is used.</param>
     /// <returns>A builder step that continues the upgrade chain from <typeparamref name="TTo"/>.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="upgrade"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="toVersion"/> is not greater than the current schema version.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when serializer metadata for <typeparamref name="TTo"/> cannot be resolved from <paramref name="options"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="upgrade"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="toVersion"/> is not greater than the current schema version.</exception>
+    /// <exception cref="InvalidOperationException">Serializer metadata for <typeparamref name="TTo"/> cannot be resolved from <paramref name="options"/>.</exception>
     [RequiresUnreferencedCode("Uses reflection-based resolver via populateMissingResolver.")]
     [RequiresDynamicCode("May require runtime code generation for reflection-based serialization.")]
     public IRecordSchemaBuilder<TTo> UpgradeTo<TTo>(
@@ -39,8 +39,8 @@ public interface IRecordSchemaBuilder<TCurrent> : IRecordSchemaFinalBuilder<TCur
     /// <param name="upgrade">The function that converts the current record to the new record type.</param>
     /// <param name="toTypeInfo">The serializer metadata used to read records of version <paramref name="toVersion"/>.</param>
     /// <returns>A builder step that continues the upgrade chain from <typeparamref name="TTo"/>.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="upgrade"/> or <paramref name="toTypeInfo"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="toVersion"/> is not greater than the current schema version.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="upgrade"/> or <paramref name="toTypeInfo"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="toVersion"/> is not greater than the current schema version.</exception>
     public IRecordSchemaBuilder<TTo> UpgradeTo<TTo>(
         int toVersion,
         Func<TCurrent, TTo> upgrade,

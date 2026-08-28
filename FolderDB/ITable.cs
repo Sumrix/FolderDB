@@ -1,48 +1,167 @@
+using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using FolderDB.Infrastructure.Exceptions;
 
 namespace FolderDB;
 
 /// <summary>
 /// Represents a table-like API over file-backed records.
 /// </summary>
-/// <remarks>
-/// Every operation comes in two forms. The plain form throws when it cannot complete the operation.
-/// The <c>Try</c> form reports file errors as a result, but still throws on other kinds of error,
-/// such as a failure to generate a file name.
-/// </remarks>
+/// <typeparam name="TKey">The type of the record id.</typeparam>
+/// <typeparam name="TRecord">The record type stored in the table.</typeparam>
 public interface ITable<in TKey, TRecord>
+    where TRecord : IRecord<TKey>
 {
     /// <summary>
-    /// Gets a record by id, or returns null when no record is present.
+    /// Asynchronously gets the record with the specified id.
     /// </summary>
-    /// <exception cref="System.Exception">Throws when the record exists but cannot be read or decoded.</exception>
+    /// <param name="id">The id of the record to get.</param>
+    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <returns>
+    /// A task that returns the asynchronous get operation, which wraps the record, or
+    /// <see langword="null"/> if no record is present.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <see langword="null"/>.</exception>
+    /// <exception cref="FileOperationException">
+    /// The record file could not be read.
+    ///
+    /// -or-
+    ///
+    /// Its content could not be decoded.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     Task<TRecord?> GetAsync(TKey id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Fully replaces the stored state of a record.
+    /// Asynchronously stores a record, fully replacing the stored state of an existing record with
+    /// the same id.
     /// </summary>
-    /// <exception cref="System.Exception">Throws when the target file cannot be written.</exception>
+    /// <param name="record">The record to store.</param>
+    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <returns>A task that returns the asynchronous upsert operation.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="record"/> is <see langword="null"/>.
+    ///
+    /// -or-
+    ///
+    /// The <see cref="IRecord{TKey}.Id"/> of the provided <paramref name="record"/> is
+    /// <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="FileNameGenerationException">
+    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    ///
+    /// -or-
+    ///
+    /// The generator produced a candidate that is <see langword="null"/>, empty, or consists only of white-space characters,
+    /// too long, or contains one or more of the invalid characters defined in <see cref="Path.GetInvalidFileNameChars"/>.
+    ///
+    /// -or-
+    ///
+    /// The generator ran out of candidates.
+    ///
+    /// -or-
+    ///
+    /// No free file name was found within
+    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// </exception>
+    /// <exception cref="FileOperationException">
+    /// The record could not be encoded.
+    ///
+    /// -or-
+    ///
+    /// The record file could not be written.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     Task UpsertAsync(TRecord record, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deletes a record and all known files that belong to it.
+    /// Asynchronously deletes the record with the specified id and every known file that belongs to it.
     /// </summary>
-    /// <exception cref="System.Exception">Throws when a known file cannot be deleted.</exception>
+    /// <param name="id">The id of the record to delete.</param>
+    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <returns>A task that returns the asynchronous delete operation.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <see langword="null"/>.</exception>
+    /// <exception cref="FileOperationException">The record file could not be deleted.</exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     Task DeleteAsync(TKey id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets a record by id and reports expected file access or decoding failures in the result.
+    /// Asynchronously gets the record with the specified id and reports expected file access and
+    /// decoding failures in the result.
     /// </summary>
+    /// <remarks>
+    /// The <c>Try</c> prefix does not make this method exception-free: failures of other kinds are
+    /// still thrown.
+    /// </remarks>
+    /// <param name="id">The id of the record to get.</param>
+    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <returns>
+    /// A task that returns the asynchronous get operation, which wraps the record and the file
+    /// error that prevented reading it, when there was one.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <see langword="null"/>.</exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     Task<ReadResult<TRecord>> TryGetAsync(TKey id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Fully replaces the stored state of a record and reports expected file access failures in the result.
+    /// Asynchronously stores a record, fully replacing the stored state of an existing record with
+    /// the same id, and reports expected file access failures in the result.
     /// </summary>
+    /// <remarks>
+    /// The <c>Try</c> prefix does not make this method exception-free: failures of other kinds are
+    /// still thrown.
+    /// </remarks>
+    /// <param name="record">The record to store.</param>
+    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <returns>
+    /// A task that returns the asynchronous upsert operation, which wraps the file error that
+    /// prevented the write, when there was one.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="record"/> is <see langword="null"/>.
+    ///
+    /// -or-
+    ///
+    /// The <see cref="IRecord{TKey}.Id"/> of the provided <paramref name="record"/> is
+    /// <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="FileNameGenerationException">
+    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    ///
+    /// -or-
+    ///
+    /// The generator produced a candidate that is <see langword="null"/>, empty, or consists only of white-space characters,
+    /// too long, or contains one or more of the invalid characters defined in <see cref="Path.GetInvalidFileNameChars"/>.
+    ///
+    /// -or-
+    ///
+    /// The generator ran out of candidates.
+    ///
+    /// -or-
+    ///
+    /// No free file name was found within
+    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deletes a record and all known files that belong to it, and reports expected file access failures in the result.
+    /// Asynchronously deletes the record with the specified id and every known file that belongs to
+    /// it, and reports expected file access failures in the result.
     /// </summary>
+    /// <remarks>
+    /// The <c>Try</c> prefix does not make this method exception-free: failures of other kinds are
+    /// still thrown.
+    /// </remarks>
+    /// <param name="id">The id of the record to delete.</param>
+    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <returns>
+    /// A task that returns the asynchronous delete operation, which wraps the file error that
+    /// prevented a deletion, when there was one.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <see langword="null"/>.</exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     Task<OperationResult> TryDeleteAsync(TKey id, CancellationToken cancellationToken = default);
 }

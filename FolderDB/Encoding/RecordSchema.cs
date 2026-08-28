@@ -16,7 +16,7 @@ public class RecordSchema<TRecord>
     /// <param name="decoder">The decoder that reads a record from JSON and upgrades it to the current schema version.</param>
     /// <param name="jsonTypeInfo">The serializer metadata used to write records.</param>
     /// <param name="currentSchemaVersion">The current schema version for versioned records, or <see langword="null"/> for non-versioned records.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="decoder"/> or <paramref name="jsonTypeInfo"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="decoder"/> or <paramref name="jsonTypeInfo"/> is <see langword="null"/>.</exception>
     public RecordSchema(
         ISchemaAwareRecordDecoder<TRecord> decoder,
         JsonTypeInfo<TRecord> jsonTypeInfo,
@@ -41,7 +41,7 @@ public class RecordSchema<TRecord>
     public JsonTypeInfo<TRecord> JsonTypeInfo { get; }
 
     /// <summary>
-    /// Gets the current schema version, or <see langword="null"/> when versioning is not used.
+    /// Gets the current schema version, or <see langword="null"/> if versioning is not used.
     /// </summary>
     public int? CurrentSchemaVersion { get; }
 }

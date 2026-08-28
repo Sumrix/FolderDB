@@ -33,6 +33,15 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     private readonly ILogger<DatabaseOperationProcessor<TKey, TRecord, TProjection>> _logger =
         logger ?? NullLogger<DatabaseOperationProcessor<TKey, TRecord, TProjection>>.Instance;
 
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <see langword="null"/>.</exception>
+    /// <exception cref="FileOperationException">
+    /// The record file could not be read.
+    ///
+    /// -or-
+    ///
+    /// Its content could not be decoded.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<TRecord?> GetAsync(TKey id, CancellationToken cancellationToken = default)
     {
         var result = await TryGetAsync(id, cancellationToken);
@@ -41,18 +50,56 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         return result.Record;
     }
 
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="record"/> is <see langword="null"/>.
+    ///
+    /// -or-
+    ///
+    /// The <see cref="IRecord{TKey}.Id"/> of the provided <paramref name="record"/> is
+    /// <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="FileNameGenerationException">
+    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    ///
+    /// -or-
+    ///
+    /// The generator produced a candidate that is <see langword="null"/>, empty, or consists only of white-space characters,
+    /// too long, or contains one or more of the invalid characters defined in <see cref="Path.GetInvalidFileNameChars"/>.
+    ///
+    /// -or-
+    ///
+    /// The generator ran out of candidates.
+    ///
+    /// -or-
+    ///
+    /// No free file name was found within
+    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// </exception>
+    /// <exception cref="FileOperationException">
+    /// The record could not be encoded.
+    ///
+    /// -or-
+    ///
+    /// The record file could not be written.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task UpsertAsync(TRecord record, CancellationToken cancellationToken = default)
     {
         var result = await TryUpsertAsync(record, cancellationToken);
         ThrowIfFailed(result);
     }
 
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <see langword="null"/>.</exception>
+    /// <exception cref="FileOperationException">The record file could not be deleted.</exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task DeleteAsync(TKey id, CancellationToken cancellationToken = default)
     {
         var result = await TryDeleteAsync(id, cancellationToken);
         ThrowIfFailed(result);
     }
 
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <see langword="null"/>.</exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<ReadResult<TRecord>> TryGetAsync(TKey id, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(id);
@@ -108,6 +155,32 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         return new ReadResult<TRecord>(record, null, fileName);
     }
 
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="record"/> is <see langword="null"/>.
+    ///
+    /// -or-
+    ///
+    /// The <see cref="IRecord{TKey}.Id"/> of the provided <paramref name="record"/> is
+    /// <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="FileNameGenerationException">
+    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    ///
+    /// -or-
+    ///
+    /// The generator produced a candidate that is <see langword="null"/>, empty, or consists only of white-space characters,
+    /// too long, or contains one or more of the invalid characters defined in <see cref="Path.GetInvalidFileNameChars"/>.
+    ///
+    /// -or-
+    ///
+    /// The generator ran out of candidates.
+    ///
+    /// -or-
+    ///
+    /// No free file name was found within
+    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
@@ -152,6 +225,8 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         return new OperationResult(null, fileName);
     }
 
+    /// <exception cref="ArgumentNullException"><paramref name="id"/> is <see langword="null"/>.</exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<OperationResult> TryDeleteAsync(TKey id, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(id);
@@ -202,6 +277,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         return new OperationResult(null, fileNames[0]);
     }
 
+    /// <exception cref="FileOperationException">The operation failed with a file error.</exception>
     private static void ThrowIfFailed(OperationResult result)
     {
         if (!result.IsSuccess)
@@ -214,6 +290,24 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         }
     }
 
+    /// <exception cref="FileNameGenerationException">
+    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    ///
+    /// -or-
+    ///
+    /// The generator produced a candidate that is <see langword="null"/>, empty, or consists only of white-space characters,
+    /// too long, or contains one or more of the invalid characters defined in <see cref="Path.GetInvalidFileNameChars"/>.
+    ///
+    /// -or-
+    ///
+    /// The generator ran out of candidates.
+    ///
+    /// -or-
+    ///
+    /// No free file name was found within
+    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     private async Task<OperationResult> InsertAsync(
         RecordScope<TKey, TRecord, TProjection> recordScope,
         TRecord record,
@@ -278,6 +372,10 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
             $"Unable to reserve a file name for record id '{record.Id}' after {_maxFileNameReserveAttempts} attempts.");
     }
 
+    /// <exception cref="FileNameGenerationException">
+    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw while
+    /// starting generation.
+    /// </exception>
     private IEnumerator<string> CreateFileNameIterator(TRecord record)
     {
         try
@@ -291,6 +389,10 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         }
     }
 
+    /// <exception cref="FileNameGenerationException">
+    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw while
+    /// producing the next candidate.
+    /// </exception>
     private static bool MoveNextFileNameCandidate(TKey id, IEnumerator<string> iterator)
     {
         try
@@ -304,6 +406,18 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         }
     }
 
+    /// <exception cref="FileNameGenerationException">
+    /// The candidate is <see langword="null"/>, empty, or consists only of white-space characters
+    ///
+    /// -or-
+    ///
+    /// The candidate contains one or more of the invalid characters defined in
+    /// <see cref="Path.GetInvalidFileNameChars"/>.
+    ///
+    /// -or-
+    ///
+    /// The candidate is too long for a file name.
+    /// </exception>
     private static string BuildFileName(TKey id, string? candidate)
     {
         if (string.IsNullOrWhiteSpace(candidate))

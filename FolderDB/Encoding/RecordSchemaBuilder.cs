@@ -16,7 +16,7 @@ public class RecordSchemaBuilder
     /// <typeparam name="T">The record type.</typeparam>
     /// <param name="options">The serializer options used to resolve <see cref="JsonTypeInfo{T}"/>. If <see langword="null"/>, <see cref="JsonSerializerOptions.Default"/> is used.</param>
     /// <returns>A record schema that reads and writes a single version, with no upgrades.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when serializer metadata for <typeparamref name="T"/> cannot be resolved from <paramref name="options"/>.</exception>
+    /// <exception cref="InvalidOperationException">Serializer metadata for <typeparamref name="T"/> cannot be resolved from <paramref name="options"/>.</exception>
     [RequiresUnreferencedCode("Uses reflection-based resolver via populateMissingResolver.")]
     [RequiresDynamicCode("May require runtime code generation for reflection-based serialization.")]
     public RecordSchema<T> WithoutVersioning<T>(JsonSerializerOptions? options = null)
@@ -34,7 +34,7 @@ public class RecordSchemaBuilder
     /// <typeparam name="T">The record type.</typeparam>
     /// <param name="jsonTypeInfo">The serializer metadata used for both reading and writing records.</param>
     /// <returns>A record schema that reads and writes a single version, with no upgrades.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="jsonTypeInfo"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="jsonTypeInfo"/> is <see langword="null"/>.</exception>
     public RecordSchema<T> WithoutVersioning<T>(JsonTypeInfo<T> jsonTypeInfo)
     {
         ArgumentNullException.ThrowIfNull(jsonTypeInfo);
@@ -48,7 +48,7 @@ public class RecordSchemaBuilder
     /// <param name="version">The schema version represented by <typeparamref name="T"/>.</param>
     /// <param name="options">The serializer options used to resolve <see cref="JsonTypeInfo{T}"/>. If <see langword="null"/>, <see cref="JsonSerializerOptions.Default"/> is used.</param>
     /// <returns>A fluent builder that can add upgrade steps and build the final record schema.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when serializer metadata for <typeparamref name="T"/> cannot be resolved from <paramref name="options"/>.</exception>
+    /// <exception cref="InvalidOperationException">Serializer metadata for <typeparamref name="T"/> cannot be resolved from <paramref name="options"/>.</exception>
     [RequiresUnreferencedCode("Uses reflection-based resolver via populateMissingResolver.")]
     [RequiresDynamicCode("May require runtime code generation for reflection-based serialization.")]
     public IRecordSchemaBuilder<T> StartWith<T>(
@@ -70,7 +70,7 @@ public class RecordSchemaBuilder
     /// <param name="version">The schema version represented by <typeparamref name="T"/>.</param>
     /// <param name="jsonTypeInfo">The serializer metadata used to read version <paramref name="version"/> records.</param>
     /// <returns>A fluent builder that can add upgrade steps and build the final record schema.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="jsonTypeInfo"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="jsonTypeInfo"/> is <see langword="null"/>.</exception>
     public IRecordSchemaBuilder<T> StartWith<T>(
         int version,
         JsonTypeInfo<T> jsonTypeInfo)

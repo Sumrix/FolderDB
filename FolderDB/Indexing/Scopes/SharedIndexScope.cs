@@ -18,6 +18,7 @@ public class SharedIndexScope<TKey, TRecord, TProjection>(
     public IReadOnlyDictionary<TKey, IReadOnlyRecordIndexState<TKey, TProjection>> Records => engine.Records;
     public IReadOnlyDictionary<string, IReadOnlyFileIndexState<TKey, TProjection>> Files => engine.Files;
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<RecordScope<TKey, TRecord, TProjection>> LockRecordAsync(
         TKey id,
         CancellationToken cancellationToken = default)
@@ -26,6 +27,7 @@ public class SharedIndexScope<TKey, TRecord, TProjection>(
         return new RecordScope<TKey, TRecord, TProjection>(engine, idLock, id);
     }
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<RecordScopePair<TKey, TRecord, TProjection>> LockRecordsAsync(
         Option<TKey> firstId,
         Option<TKey> secondId,

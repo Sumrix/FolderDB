@@ -15,12 +15,14 @@ public class TableIndex<TKey, TRecord, TProjection>(
 {
     public IReadOnlyDictionary<TKey, IReadOnlyRecordIndexState<TKey, TProjection>> Records => engine.Records;
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<SharedIndexScope<TKey, TRecord, TProjection>> EnterSharedScopeAsync(CancellationToken cancellationToken = default)
     {
         var readerLock = await engine.Barrier.ReaderLockAsync(cancellationToken);
         return new(engine, context, readerLock);
     }
 
+    /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<ExclusiveIndexScope<TKey, TRecord, TProjection>> EnterExclusiveScopeAsync(CancellationToken cancellationToken = default)
     {
         var writerLock = await engine.Barrier.WriterLockAsync(cancellationToken);

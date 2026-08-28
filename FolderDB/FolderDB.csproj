@@ -3,6 +3,10 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <!-- Not for shipping docs, but for the checks it turns on: unresolved cref, param name typos.
+         1591 stays off: public types of the third level carry no xml documentation by design. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
     <!--<IsTrimmable>true</IsTrimmable>
     <VerifyReferenceTrimCompatibility>true</VerifyReferenceTrimCompatibility>-->
   </PropertyGroup>
