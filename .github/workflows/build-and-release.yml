@@ -16,6 +16,8 @@ jobs:
 
     permissions:
       contents: write
+      # Lets the job request the OIDC token that nuget.org exchanges for a short-lived key.
+      id-token: write
 
     steps:
       - uses: actions/checkout@v7
@@ -62,12 +64,18 @@ jobs:
           name: nupkg
           path: artifacts/*
 
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: sumrix
+
       # The matching .snupkg goes up with the .nupkg, nuget push finds it on its own.
       - name: Push to NuGet
         run: >
           dotnet nuget push "artifacts/*.nupkg"
           --source https://api.nuget.org/v3/index.json
-          --api-key ${{ secrets.NUGET_API_KEY }}
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
           --skip-duplicate
 
       - name: Create GitHub release
