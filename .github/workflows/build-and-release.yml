@@ -70,13 +70,14 @@ jobs:
         with:
           user: sumrix
 
+      # dotnet nuget push takes a path, not a pattern, and pwsh does not expand globs for
+      # native commands, so the file is resolved here. A bash runner would expand it in the
+      # shell, which is why the same line works elsewhere.
       # The matching .snupkg goes up with the .nupkg, nuget push finds it on its own.
       - name: Push to NuGet
-        run: >
-          dotnet nuget push "artifacts/*.nupkg"
-          --source https://api.nuget.org/v3/index.json
-          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
-          --skip-duplicate
+        run: |
+          $package = Get-ChildItem artifacts -Filter *.nupkg | Select-Object -First 1
+          dotnet nuget push $package.FullName --source https://api.nuget.org/v3/index.json --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --skip-duplicate
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
