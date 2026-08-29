@@ -7,8 +7,11 @@
          1591 stays off: public types of the third level carry no xml documentation by design. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <!--<IsTrimmable>true</IsTrimmable>
-    <VerifyReferenceTrimCompatibility>true</VerifyReferenceTrimCompatibility>-->
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- VerifyReferenceTrimCompatibility and VerifyReferenceAotCompatibility stay off. They check
+         whether a reference carries the IsTrimmable attribute, never whether its code is clean.
+         Nito.AsyncEx predates the attribute and is AOT-clean throughout, verified by a NativeAOT
+         publish with all of it rooted, so the flags only add a pair of warnings per Nito assembly. -->
   </PropertyGroup>
 
   <ItemGroup>
