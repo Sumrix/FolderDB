@@ -1,0 +1,80 @@
+name: Build and Upload Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+run-name: Build & Release ${{ github.ref_name }}
+
+jobs:
+  build_and_release:
+    # Windows, because that is where the test suite is known to pass. The package itself
+    # is platform-neutral, so the choice of runner does not reach the artifact.
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Resolve versions from the tag
+        id: version
+        shell: pwsh
+        run: |
+          $package = '${{ github.ref_name }}' -replace '^v', ''
+          # AssemblyVersion and FileVersion take no prerelease suffix, so v1.0.0-rc.1
+          # ships as package 1.0.0-rc.1 built from assembly 1.0.0.
+          $numeric = $package -replace '-.*', ''
+          "package=$package" >> $env:GITHUB_OUTPUT
+          "numeric=$numeric" >> $env:GITHUB_OUTPUT
+          Write-Host "Packing $package (assembly $numeric)"
+
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: .github/cliff.toml
+          args: --latest
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Test
+        run: dotnet test FolderDB.Tests/FolderDB.Tests.csproj -c Release
+
+      - name: Pack
+        run: >
+          dotnet pack FolderDB/FolderDB.csproj -c Release --output artifacts
+          -p:PackageVersion=${{ steps.version.outputs.package }}
+          -p:AssemblyVersion=${{ steps.version.outputs.numeric }}
+          -p:FileVersion=${{ steps.version.outputs.numeric }}
+          -p:PackageReleaseNotes=${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nupkg
+          path: artifacts/*
+
+      # The matching .snupkg goes up with the .nupkg, nuget push finds it on its own.
+      - name: Push to NuGet
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --skip-duplicate
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ steps.version.outputs.package }}
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}
+          body_path: CHANGELOG.md

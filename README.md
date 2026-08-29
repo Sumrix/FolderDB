@@ -14,7 +14,7 @@ FolderDB:
 - keeps records readable and inspectable with ordinary tools;
 - handles delayed file-system watcher events and recovery scans;
 - supports schema-versioned records and migrations;
-- is being built with trimming and NativeAOT support in mind.
+- supports trimming and NativeAOT.
 
 ## Quick Start
 
@@ -25,8 +25,8 @@ using FolderDB;
 
 var users = TableDefinitionBuilder.CreateDefault<string, User>();
 
-await using var db = await FolderDatabase.StartAsync(
-    rootPath: "data",
+await using var db = await FolderDatabase.OpenAsync(
+    path: "data",
     tableDefinitions: [users]);
 
 var table = db.Table<string, User>();
@@ -60,7 +60,7 @@ User data is sacred. FolderDB treats your files as the source of truth, and the 
 
 Instead of relying on ad-hoc reconciliation logic, FolderDB uses a strict, explicitly modeled decision process. Every important edge case, including missing files, decode errors, ID changes, and I/O races, is handled intentionally.
 
-[Read the Index Reconciliation Rulebook](docs/index-reconciliation-rulebook.md) to see the exact decision tables and lock boundaries. Analyze it yourself: no hand-waving, no hidden magic.
+[Read the Index Reconciliation Rulebook](https://github.com/Sumrix/FolderDB/blob/main/docs/index-reconciliation-rulebook.md) to see the exact decision tables and lock boundaries. Analyze it yourself: no hand-waving, no hidden magic.
 
 ## Status
 
