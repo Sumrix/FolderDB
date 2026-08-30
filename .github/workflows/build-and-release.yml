@@ -54,7 +54,7 @@ jobs:
       - name: Pack
         run: >
           dotnet pack FolderDB/FolderDB.csproj -c Release --output artifacts
-          -p:PackageVersion=${{ steps.version.outputs.package }}
+          -p:Version=${{ steps.version.outputs.package }}
           -p:AssemblyVersion=${{ steps.version.outputs.numeric }}
           -p:FileVersion=${{ steps.version.outputs.numeric }}
           -p:PackageReleaseNotes=${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
