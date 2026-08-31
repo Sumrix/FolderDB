@@ -4,9 +4,9 @@ using FolderDB.Retry;
 namespace FolderDB;
 
 /// <summary>
-/// Provides options to be used with <see cref="FolderDatabase.CreateDefaultRetryScheduler"/>.
+/// Provides options to be used with <see cref="TimeBucketQueueManager"/>.
 /// </summary>
-public sealed class DefaultRetrySchedulerOptions
+public sealed class TimeBucketQueueManagerOptions
 {
     private TimeSpan _interval = TimeSpan.FromMilliseconds(100);
     private int _maxRetryIntervals = 10;

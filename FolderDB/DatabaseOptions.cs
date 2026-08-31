@@ -81,7 +81,7 @@ public sealed class DatabaseOptions
     /// </summary>
     /// <returns>
     /// The retry factory. The default is <see langword="null"/>, which indicates that
-    /// <see cref="FolderDatabase.CreateDefaultRetryFileStore"/> is used.
+    /// <see cref="RetryFileStore"/> is used.
     /// </returns>
     public Func<FileStoreRetryContext, IFileStore>? FileStoreRetryFactory { get; set; }
 
@@ -90,7 +90,7 @@ public sealed class DatabaseOptions
     /// </summary>
     /// <returns>
     /// The scheduler factory. The default is <see langword="null"/>, which indicates that
-    /// <see cref="FolderDatabase.CreateDefaultRetryScheduler"/> is used.
+    /// <see cref="TimeBucketQueueManager"/> is used.
     /// </returns>
     /// <remarks>
     /// The scheduler is keyed by file path, so a replacement has to compare its keys the way the

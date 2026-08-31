@@ -9,13 +9,33 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FolderDB.FileStorage;
 
-public sealed class RetryFileStore(
-    IFileStore inner,
-    RetryFileStoreOptions? options = null,
-    ILogger<RetryFileStore>? logger = null) : IFileStore
+/// <summary>
+/// Provides safe low-level file operations, repeating an operation after a transient failure.
+/// </summary>
+public sealed class RetryFileStore : IFileStore
 {
-    private readonly RetryFileStoreOptions _options = options ?? RetryFileStoreOptions.Default;
-    private readonly ILogger<RetryFileStore> _logger = logger ?? NullLogger<RetryFileStore>.Instance;
+    private readonly IFileStore _inner;
+    private readonly RetryFileStoreOptions _options;
+    private readonly ILogger<RetryFileStore> _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RetryFileStore"/> class.
+    /// </summary>
+    /// <param name="inner">
+    /// The inner store which is responsible for performing the file operations that are retried.
+    /// </param>
+    /// <param name="options">Options to control the retry behavior.</param>
+    /// <param name="loggerFactory">The factory used to create the store's logger.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="inner"/> is <see langword="null"/>.</exception>
+    public RetryFileStore(
+        IFileStore inner,
+        RetryFileStoreOptions? options = null,
+        ILoggerFactory? loggerFactory = null)
+    {
+        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        _options = options ?? RetryFileStoreOptions.Default;
+        _logger = loggerFactory?.CreateLogger<RetryFileStore>() ?? NullLogger<RetryFileStore>.Instance;
+    }
 
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<FileWriteResult> WriteAsync(
@@ -28,7 +48,7 @@ public sealed class RetryFileStore(
         return await ExecuteWithRetryAsync(
             path,
             _options.Write,
-            () => inner.WriteAsync(path, writeAction, cancellationToken),
+            () => _inner.WriteAsync(path, writeAction, cancellationToken),
             cancellationToken);
     }
 
@@ -40,7 +60,7 @@ public sealed class RetryFileStore(
         return await ExecuteWithRetryAsync(
             path,
             _options.Read,
-            () => inner.ReadAsync(path, parseAction, cancellationToken),
+            () => _inner.ReadAsync(path, parseAction, cancellationToken),
             cancellationToken);
     }
 
@@ -52,13 +72,13 @@ public sealed class RetryFileStore(
         return await ExecuteWithRetryAsync(
             path,
             _options.Delete,
-            () => inner.DeleteAsync(path, cancellationToken),
+            () => _inner.DeleteAsync(path, cancellationToken),
             cancellationToken);
     }
 
     public FileFingerprint GetFileFingerprint(string path)
     {
-        return inner.GetFileFingerprint(path);
+        return _inner.GetFileFingerprint(path);
     }
 
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>

@@ -4,11 +4,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using FolderDB.Infrastructure.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FolderDB.Retry;
 
+/// <summary>
+/// Provides the default scheduler that re-runs deferred file work, running the items that come due
+/// in the same interval as a single batch.
+/// </summary>
+/// <remarks>
+/// Time is divided into intervals of <see cref="TimeBucketQueueManagerOptions.Interval"/>, and an item
+/// runs on an interval boundary rather than at an exact moment. The items of one interval are
+/// processed one after another, never in parallel. An item that asks for another attempt is delayed
+/// further each time, up to <see cref="TimeBucketQueueManagerOptions.MaxRetryIntervals"/> intervals.
+/// </remarks>
 public class TimeBucketQueueManager : IRetryScheduler<string>
 {
     private readonly int _maxRetryIntervals;
@@ -19,49 +30,31 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
     private readonly BucketTimerScheduler _scheduler;
     private readonly ILogger<TimeBucketQueueManager> _logger;
 
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="interval"/> is less than one millisecond or greater than one day.
-    ///
-    /// -or-
-    ///
-    /// <paramref name="maxRetryIntervals"/> is zero or negative.
-    ///
-    /// -or-
-    ///
-    /// <paramref name="backoffMultiplier"/> is less than 1 or is <see cref="double.NaN"/>.
-    /// </exception>
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TimeBucketQueueManager"/> class.
+    /// </summary>
+    /// <param name="options">Options to control the behavior of the scheduler.</param>
+    /// <param name="loggerFactory">The factory used to create the scheduler's loggers.</param>
     public TimeBucketQueueManager(
-        TimeSpan interval,
-        int maxRetryIntervals = 10,
-        double backoffMultiplier = 2,
-        IEqualityComparer<string>? valueComparer = null,
+        TimeBucketQueueManagerOptions? options = null,
         ILoggerFactory? loggerFactory = null)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(interval, TimeSpan.FromMilliseconds(1));
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(interval, RetryConsts.MaxDelay);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxRetryIntervals);
+        options ??= new TimeBucketQueueManagerOptions();
 
-        // ThrowIfLessThan cannot reject NaN: every comparison with it is false.
-        if (double.IsNaN(backoffMultiplier))
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(backoffMultiplier), backoffMultiplier, "The value must be a number.");
-        }
-
-        ArgumentOutOfRangeException.ThrowIfLessThan(backoffMultiplier, 1);
-
-        _maxRetryIntervals = maxRetryIntervals;
-        _backoffMultiplier = backoffMultiplier;
+        _maxRetryIntervals = options.MaxRetryIntervals;
+        _backoffMultiplier = options.BackoffMultiplier;
         _lifetimeCts = new CancellationTokenSource();
         _cancellationToken = _lifetimeCts.Token;
         var effectiveLoggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
         _logger = effectiveLoggerFactory.CreateLogger<TimeBucketQueueManager>();
 
-        _items = new ConcurrentDictionary<string, QueueItem>(valueComparer);
+        // The scheduled values are file paths, so they are compared the way the rest of the library
+        // compares them.
+        _items = new ConcurrentDictionary<string, QueueItem>(PathHelper.OSDependedPathComparer);
 
         // We pass our processing logic as the callback
         _scheduler = new BucketTimerScheduler(
-            (int)interval.TotalMilliseconds,
+            (int)options.Interval.TotalMilliseconds,
             ProcessBatchAsync,
             effectiveLoggerFactory.CreateLogger<BucketTimerScheduler>());
     }

@@ -162,10 +162,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
     {
         if (databaseOptions.FileStoreRetryFactory is null)
         {
-            return FolderDatabase.CreateDefaultRetryFileStore(
-                inner,
-                options: null,
-                loggerFactory);
+            return new RetryFileStore(inner, options: null, loggerFactory);
         }
 
         var retryStore = databaseOptions.FileStoreRetryFactory(new FileStoreRetryContext

@@ -15,7 +15,12 @@ public class TimeBucketQueueManagerTests
     private const int _backoffQuietWaitMs = 400;
 
     private static TimeBucketQueueManager CreateManager() =>
-        new(_interval, maxRetryIntervals: 100, _backoffMultiplier);
+        new(new TimeBucketQueueManagerOptions
+        {
+            Interval = _interval,
+            MaxRetryIntervals = 100,
+            BackoffMultiplier = _backoffMultiplier
+        });
 
     [Fact]
     public async Task Enqueue_WhenPlainRequestArrivesDuringProcessing_KeepsBackoffProgression()

@@ -4,12 +4,9 @@ using System.IO;
 using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
-using FolderDB.FileStorage;
 using FolderDB.Infrastructure.Helpers;
 using FolderDB.Infrastructure.Watching;
-using FolderDB.Retry;
 using FolderDB.Runtime;
-using Microsoft.Extensions.Logging;
 
 namespace FolderDB;
 
@@ -307,40 +304,6 @@ public class FolderDatabase : IDatabase
         where TKey : notnull
     {
         return await DatabaseFactory.OpenTableAsync(path, definition, options, cancellationToken);
-    }
-
-    /// <summary>
-    /// Creates the default retry scheduler that can be used to set <see cref="DatabaseOptions.RetrySchedulerFactory"/>.
-    /// </summary>
-    /// <param name="options">Options to control the behavior of the scheduler.</param>
-    /// <param name="loggerFactory">The factory used to create the scheduler's logger.</param>
-    /// <returns>A new <see cref="TimeBucketQueueManager"/>.</returns>
-    public static IRetryScheduler<string> CreateDefaultRetryScheduler(
-        DefaultRetrySchedulerOptions? options = null,
-        ILoggerFactory? loggerFactory = null)
-    {
-        return DatabaseFactory.CreateDefaultRetryScheduler(options, loggerFactory);
-    }
-
-    /// <summary>
-    /// Creates the default retry file store that can be used to set <see cref="DatabaseOptions.FileStoreRetryFactory"/>.
-    /// </summary>
-    /// <param name="inner">The store to wrap.</param>
-    /// <param name="options">Options to control the retry behavior.</param>
-    /// <param name="loggerFactory">The factory used to create the store's logger.</param>
-    /// <returns>A new <see cref="RetryFileStore"/>.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="inner"/> is <see langword="null"/>.</exception>
-    public static IFileStore CreateDefaultRetryFileStore(
-        IFileStore inner,
-        RetryFileStoreOptions? options = null,
-        ILoggerFactory? loggerFactory = null)
-    {
-        ArgumentNullException.ThrowIfNull(inner);
-
-        return new RetryFileStore(
-            inner,
-            options,
-            loggerFactory?.CreateLogger<RetryFileStore>());
     }
 
     /// <summary>

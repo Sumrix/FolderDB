@@ -4,7 +4,7 @@ using FolderDB.FileStorage;
 namespace FolderDB;
 
 /// <summary>
-/// Provides options to be used with <see cref="FolderDatabase.CreateDefaultRetryFileStore"/>.
+/// Provides options to be used with <see cref="RetryFileStore"/>.
 /// </summary>
 /// <remarks>
 /// The settings are read on every operation, so changing them affects a store that is already

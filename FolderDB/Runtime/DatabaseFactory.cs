@@ -382,22 +382,6 @@ internal sealed class DatabaseFactory
             cancellationToken);
     }
 
-    public static IRetryScheduler<string> CreateDefaultRetryScheduler(
-        DefaultRetrySchedulerOptions? options,
-        ILoggerFactory? loggerFactory)
-    {
-        var effectiveOptions = options ?? new DefaultRetrySchedulerOptions();
-
-        // Never throws because the properties are validated on set
-        return new TimeBucketQueueManager(
-            interval: effectiveOptions.Interval,
-            maxRetryIntervals: effectiveOptions.MaxRetryIntervals,
-            backoffMultiplier: effectiveOptions.BackoffMultiplier,
-            // The values are paths, so we need to use the OS-dependent comparer
-            valueComparer: PathHelper.OSDependedPathComparer,
-            loggerFactory: loggerFactory);
-    }
-
     private static DatabaseResources CreateResources(DatabaseOptions options)
     {
         IFileStore? fileStore = null;
@@ -414,7 +398,7 @@ internal sealed class DatabaseFactory
             }
 
             retryScheduler = options.RetrySchedulerFactory is null
-                ? CreateDefaultRetryScheduler(options: null, loggerFactory)
+                ? new TimeBucketQueueManager(loggerFactory: loggerFactory)
                 : options.RetrySchedulerFactory(loggerFactory);
             if (retryScheduler is null)
             {
