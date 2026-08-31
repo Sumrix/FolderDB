@@ -35,7 +35,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
     private readonly IReadOnlyDictionary<TKey, IndexedFile<TProjection>> _indexedFiles;
     private readonly IReadOnlyDictionary<TKey, TProjection> _projections;
 
-    private bool _disposed;
+    private int _disposed;
 
     public IReadOnlyDictionary<TKey, TProjection> Projections => _projections;
     public IReadOnlyDictionary<TKey, IndexedFile<TProjection>> Files => _indexedFiles;
@@ -362,7 +362,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, true))
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
             return;
 
         DisposeHelper.SafeDispose(_watcher);

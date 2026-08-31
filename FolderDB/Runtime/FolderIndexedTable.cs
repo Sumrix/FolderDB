@@ -14,7 +14,7 @@ public class FolderIndexedTable<TKey, TRecord, TProjection> :
     private readonly DatabaseResources _resources;
     private readonly TableEngine<TKey, TRecord, TProjection> _engine;
 
-    private bool _disposed;
+    private int _disposed;
 
     public string RootPath { get; }
 
@@ -96,7 +96,7 @@ public class FolderIndexedTable<TKey, TRecord, TProjection> :
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, true))
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
             return;
 
         await DisposeHelper.SafeDispose(_engine);
@@ -108,6 +108,6 @@ public class FolderIndexedTable<TKey, TRecord, TProjection> :
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(_disposed == 1, this);
     }
 }

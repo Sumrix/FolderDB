@@ -33,7 +33,7 @@ public class AutoSaver : IAsyncDisposable
     private Task? _syncTask;
     private CancellationTokenSource? _syncCts;
 
-    private bool _disposed;
+    private int _disposed;
     private bool _syncing;
 
     public Action<Exception>? OnError { get; set; }
@@ -197,12 +197,12 @@ public class AutoSaver : IAsyncDisposable
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(Interlocked.CompareExchange(ref _disposed, true, true), this);
+        ObjectDisposedException.ThrowIf(_disposed == 1, this);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, true))
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
         {
             return;
         }

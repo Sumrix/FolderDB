@@ -21,7 +21,7 @@ public class BucketTimerScheduler : IDisposable
     // State
     private readonly SortedSet<long> _scheduledBuckets = [];
     private readonly Timer _timer;
-    private readonly Lock _lock = new();
+    private readonly object _lock = new();
 
     // "Async Pump" guard.
     // Modified ONLY inside _lock to ensure atomicity with timer state.

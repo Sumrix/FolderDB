@@ -20,7 +20,7 @@ public class FolderDatabase : IDatabase
     private readonly IReadOnlyDictionary<string, ITableEngine> _tableEnginesByDirectoryName;
     private readonly PathWatcher _rootPathWatcher;
 
-    private bool _disposed;
+    private int _disposed;
 
     /// <inheritdoc/>
     public string RootPath { get; }
@@ -366,7 +366,7 @@ public class FolderDatabase : IDatabase
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, true))
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
             return;
 
         DisposeHelper.SafeDispose(_rootPathWatcher);
@@ -381,7 +381,7 @@ public class FolderDatabase : IDatabase
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(_disposed == 1, this);
     }
 
     /// <exception cref="ObjectDisposedException">The database has been disposed.</exception>

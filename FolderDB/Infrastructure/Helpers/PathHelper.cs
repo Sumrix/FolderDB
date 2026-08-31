@@ -29,7 +29,7 @@ public static class PathHelper
             for (; i >= 0; i--)
             {
                 char c = original[i];
-                span[i] = InvalidChars.Contains(c) ? '_' : c;
+                span[i] = InvalidChars.AsSpan().Contains(c) ? '_' : c;
             }
         });
     }
