@@ -69,7 +69,7 @@ public class RecordScopedIndexEngineTests : IDisposable
     [Fact]
     public async Task LoadFileAsync_WhenJsonInvalid_StartsWithEmptyState()
     {
-        await File.WriteAllTextAsync(_path, "not a json");
+        await File.WriteAllTextAsync(_path, "not a json", TestContext.Current.CancellationToken);
         await using var engine = await CreateNoProjectionEngineAsync();
         ShouldBeEmpty(engine);
     }
@@ -180,7 +180,8 @@ public class RecordScopedIndexEngineTests : IDisposable
             _path,
             _stringTable,
             _stringPersistence,
-            autoSaveEnabled: false);
+            autoSaveEnabled: false,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         var fingerprint = new FileFingerprint(DateTime.UnixEpoch, 10, true);
         engine.Upsert("id-1", "file-a.json", fingerprint, 1, new TestRecord("id-1", 1, "first")).Should().Be(IndexOperationResult.Applied);
@@ -211,7 +212,8 @@ public class RecordScopedIndexEngineTests : IDisposable
             _path,
             _stringTable,
             _stringPersistence,
-            autoSaveEnabled: false);
+            autoSaveEnabled: false,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         var fingerprint = new FileFingerprint(DateTime.UnixEpoch, 10, true);
         var errorInfo = FileErrorInfo.Create(
@@ -246,12 +248,13 @@ public class RecordScopedIndexEngineTests : IDisposable
                 })
         ]);
 
-        await File.WriteAllTextAsync(_path, JsonSerializer.Serialize(dto));
+        await File.WriteAllTextAsync(_path, JsonSerializer.Serialize(dto), TestContext.Current.CancellationToken);
         await using var engine = await RecordScopedIndexEngine<string, TestRecord, string>.StartAsync(
             _path,
             _stringTable,
             _stringPersistence,
-            autoSaveEnabled: false);
+            autoSaveEnabled: false,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         engine.Records["id-1"].GetCurrentFileState().Projection.Should().Be("Harry Potter");
         engine.Files["user.json"].Projection.Should().Be("Harry Potter");
@@ -285,12 +288,13 @@ public class RecordScopedIndexEngineTests : IDisposable
         state.Files["user.json"] = file;
         record.Files["user.json"] = file;
 
-        await File.WriteAllBytesAsync(_path, _stringPersistence.SerializeToBytes(state));
+        await File.WriteAllBytesAsync(_path, _stringPersistence.SerializeToBytes(state), TestContext.Current.CancellationToken);
         await using var engine = await RecordScopedIndexEngine<string, TestRecord, string>.StartAsync(
             _path,
             _stringTable,
             _stringPersistence,
-            autoSaveEnabled: false);
+            autoSaveEnabled: false,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         engine.Files["user.json"].Status.Should().Be(FileIndexStatus.Committed);
         engine.Files["user.json"].ErrorInfo.Should().Be(errorInfo);

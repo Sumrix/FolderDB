@@ -38,7 +38,7 @@ public class AutoSaverTests : IDisposable
         saver.MarkDirty();
         await saver.FlushAsync(CancellationToken.None);
 
-        Assert.Equal(snapshot, await File.ReadAllBytesAsync(_path));
+        Assert.Equal(snapshot, await File.ReadAllBytesAsync(_path, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public class AutoSaverTests : IDisposable
         await saver.FlushAsync(CancellationToken.None);
         var ts2 = File.GetLastWriteTimeUtc(_path);
 
-        Assert.Equal(snapshot, await File.ReadAllBytesAsync(_path));
+        Assert.Equal(snapshot, await File.ReadAllBytesAsync(_path, TestContext.Current.CancellationToken));
         Assert.Equal(ts1, ts2);
     }
 
@@ -69,9 +69,9 @@ public class AutoSaverTests : IDisposable
 
         saver.Start();
         saver.MarkDirty();
-        await Task.Delay(_waitWriteDelayMs);
+        await Task.Delay(_waitWriteDelayMs, TestContext.Current.CancellationToken);
 
-        Assert.Equal(snapshot, await File.ReadAllBytesAsync(_path));
+        Assert.Equal(snapshot, await File.ReadAllBytesAsync(_path, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -88,17 +88,17 @@ public class AutoSaverTests : IDisposable
 
         // burst #1 inside one interval
         for (int i = 0; i < 50; i++) saver.MarkDirty();
-        await Task.Delay(_waitWriteDelayMs);
+        await Task.Delay(_waitWriteDelayMs, TestContext.Current.CancellationToken);
 
-        var expected = BitConverter.ToInt32(await File.ReadAllBytesAsync(_path), 0);
+        var expected = BitConverter.ToInt32(await File.ReadAllBytesAsync(_path, TestContext.Current.CancellationToken), 0);
         Assert.Equal(1, Volatile.Read(ref calls));
         Assert.Equal(1, expected);
 
         // burst #2 -> next interval => 2nd write
         for (int i = 0; i < 50; i++) saver.MarkDirty();
-        await Task.Delay(_waitWriteDelayMs);
+        await Task.Delay(_waitWriteDelayMs, TestContext.Current.CancellationToken);
 
-        expected = BitConverter.ToInt32(await File.ReadAllBytesAsync(_path), 0);
+        expected = BitConverter.ToInt32(await File.ReadAllBytesAsync(_path, TestContext.Current.CancellationToken), 0);
         Assert.Equal(2, expected);
 
         await saver.DisposeAsync();
@@ -116,7 +116,7 @@ public class AutoSaverTests : IDisposable
 
         saver.Start();
         saver.MarkDirty();
-        await Task.Delay(_waitWriteDelayMs);
+        await Task.Delay(_waitWriteDelayMs, TestContext.Current.CancellationToken);
 
         await saver.DisposeAsync();
         await saver.DisposeAsync(); // idempotent
@@ -143,15 +143,15 @@ public class AutoSaverTests : IDisposable
 
         saver.Start();
         saver.MarkDirty();
-        await Task.Delay(_waitWriteDelayMs);
+        await Task.Delay(_waitWriteDelayMs, TestContext.Current.CancellationToken);
 
         Assert.NotNull(Volatile.Read(ref captured));
 
         Directory.Delete(tmpPath, recursive: true);
         saver.MarkDirty();
-        await Task.Delay(_waitWriteDelayMs);
+        await Task.Delay(_waitWriteDelayMs, TestContext.Current.CancellationToken);
 
-        Assert.Equal(snapshot, await File.ReadAllBytesAsync(_path));
+        Assert.Equal(snapshot, await File.ReadAllBytesAsync(_path, TestContext.Current.CancellationToken));
     }
 
     [Fact]

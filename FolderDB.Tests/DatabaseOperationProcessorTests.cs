@@ -29,9 +29,9 @@ public class DatabaseOperationProcessorTests
     [Fact]
     public async Task TryGetAsync_WhenRecordIsMissing_ReturnsSuccessWithNullRecord()
     {
-        await using var ctx = await TestContext.CreateAsync();
+        await using var harness = await Harness.CreateAsync();
 
-        var result = await ctx.Processor.TryGetAsync("missing");
+        var result = await harness.Processor.TryGetAsync("missing", TestContext.Current.CancellationToken);
 
         Assert.True(result.IsSuccess);
         Assert.Null(result.Record);
@@ -42,31 +42,31 @@ public class DatabaseOperationProcessorTests
     [Fact]
     public async Task TryGetAsync_WhenDecodeFails_ReturnsInvalidRecordAndMarksFileInvalid()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
+        await using var harness = await Harness.CreateAsync();
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
-        var fileName = await ctx.GetCurrentFileNameAsync("id-1");
-        await File.WriteAllTextAsync(Path.Combine(ctx.TablePath, fileName), "{ invalid json");
+        var fileName = await harness.GetCurrentFileNameAsync("id-1");
+        await File.WriteAllTextAsync(Path.Combine(harness.TablePath, fileName), "{ invalid json", TestContext.Current.CancellationToken);
 
-        var result = await ctx.Processor.TryGetAsync("id-1");
+        var result = await harness.Processor.TryGetAsync("id-1", TestContext.Current.CancellationToken);
 
         Assert.Equal(FileErrorReason.Invalid, result.ErrorReason);
         Assert.Null(result.Record);
         Assert.Equal(fileName, result.FileName);
         Assert.NotNull(result.Error?.Exception);
-        await ctx.AssertHasSingleErrorInfoFileAsync("id-1", FileErrorReason.Invalid);
+        await harness.AssertHasSingleErrorInfoFileAsync("id-1", FileErrorReason.Invalid);
     }
 
     [Fact]
     public async Task GetAsync_WhenDecodeFails_ThrowsFileOperationExceptionKeepingOriginalCause()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
+        await using var harness = await Harness.CreateAsync();
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
-        var fileName = await ctx.GetCurrentFileNameAsync("id-1");
-        await File.WriteAllTextAsync(Path.Combine(ctx.TablePath, fileName), "{ invalid json");
+        var fileName = await harness.GetCurrentFileNameAsync("id-1");
+        await File.WriteAllTextAsync(Path.Combine(harness.TablePath, fileName), "{ invalid json", TestContext.Current.CancellationToken);
 
-        var exception = await Assert.ThrowsAsync<FileOperationException>(() => ctx.Processor.GetAsync("id-1"));
+        var exception = await Assert.ThrowsAsync<FileOperationException>(() => harness.Processor.GetAsync("id-1", TestContext.Current.CancellationToken));
 
         Assert.Equal(FileErrorReason.Invalid, exception.Reason);
         var conversion = Assert.IsType<RecordConversionException>(exception.InnerException);
@@ -76,34 +76,34 @@ public class DatabaseOperationProcessorTests
     [Fact]
     public async Task TryGetAsync_WhenReadFailsWithTransientIo_ReturnsFileAccessFailedAndMarksFileUnavailable()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
-        var fileName = await ctx.GetCurrentFileNameAsync("id-1");
+        await using var harness = await Harness.CreateAsync();
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
+        var fileName = await harness.GetCurrentFileNameAsync("id-1");
 
-        ctx.FileStore.ReadExceptionFactory = _ => CreateTransientIOException();
+        harness.FileStore.ReadExceptionFactory = _ => CreateTransientIOException();
 
-        var result = await ctx.Processor.TryGetAsync("id-1");
+        var result = await harness.Processor.TryGetAsync("id-1", TestContext.Current.CancellationToken);
 
         Assert.Equal(FileErrorReason.Unavailable, result.ErrorReason);
         Assert.Null(result.Record);
         Assert.Equal(fileName, result.FileName);
         Assert.NotNull(result.Error?.Exception);
-        Assert.Equal([(Path.Combine(ctx.TablePath, fileName), false)], ctx.ReconcileRequests);
-        await ctx.AssertHasSingleErrorInfoFileAsync("id-1", FileErrorReason.Unavailable);
+        Assert.Equal([(Path.Combine(harness.TablePath, fileName), false)], harness.ReconcileRequests);
+        await harness.AssertHasSingleErrorInfoFileAsync("id-1", FileErrorReason.Unavailable);
     }
 
     [Fact]
     public async Task GetAsync_WhenTransientReadFailsOnce_RetriesAndReturnsRecord()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
+        await using var harness = await Harness.CreateAsync();
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
         var attempts = 0;
-        ctx.FileStore.ReadExceptionFactory = _ => ++attempts == 1
+        harness.FileStore.ReadExceptionFactory = _ => ++attempts == 1
             ? CreateTransientIOException()
             : null;
 
-        var result = await ctx.Processor.GetAsync("id-1");
+        var result = await harness.Processor.GetAsync("id-1", TestContext.Current.CancellationToken);
 
         Assert.Equal(new TestRecord("id-1", 1, "value"), result);
         Assert.Equal(2, attempts);
@@ -112,114 +112,114 @@ public class DatabaseOperationProcessorTests
     [Fact]
     public async Task TryGetAsync_WhenFileDisappears_ReturnsSuccessNullAndRemovesFileFromIndex()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
+        await using var harness = await Harness.CreateAsync();
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
-        var fileName = await ctx.GetCurrentFileNameAsync("id-1");
-        File.Delete(Path.Combine(ctx.TablePath, fileName));
+        var fileName = await harness.GetCurrentFileNameAsync("id-1");
+        File.Delete(Path.Combine(harness.TablePath, fileName));
 
-        var result = await ctx.Processor.TryGetAsync("id-1");
+        var result = await harness.Processor.TryGetAsync("id-1", TestContext.Current.CancellationToken);
 
         Assert.True(result.IsSuccess);
         Assert.Null(result.Record);
         Assert.Equal(fileName, result.FileName);
         Assert.Null(result.Error);
-        await ctx.AssertIndexEmptyAsync();
+        await harness.AssertIndexEmptyAsync();
     }
 
     [Fact]
     public async Task UpsertAsync_WhenKnownFileWasMarkedInvalid_WritesSameFileAndRestoresCommittedState()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
+        await using var harness = await Harness.CreateAsync();
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
-        var fileName = await ctx.GetCurrentFileNameAsync("id-1");
-        var filePath = Path.Combine(ctx.TablePath, fileName);
-        await File.WriteAllTextAsync(filePath, "{ invalid json");
-        var getResult = await ctx.Processor.TryGetAsync("id-1");
+        var fileName = await harness.GetCurrentFileNameAsync("id-1");
+        var filePath = Path.Combine(harness.TablePath, fileName);
+        await File.WriteAllTextAsync(filePath, "{ invalid json", TestContext.Current.CancellationToken);
+        var getResult = await harness.Processor.TryGetAsync("id-1", TestContext.Current.CancellationToken);
         Assert.Equal(FileErrorReason.Invalid, getResult.ErrorReason);
 
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "restored"));
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "restored"), TestContext.Current.CancellationToken);
 
-        Assert.Equal(fileName, await ctx.GetCurrentFileNameAsync("id-1"));
-        Assert.Equal(new TestRecord("id-1", 1, "restored"), await ctx.Processor.GetAsync("id-1"));
-        await ctx.AssertHasSingleRecordAsync("id-1");
+        Assert.Equal(fileName, await harness.GetCurrentFileNameAsync("id-1"));
+        Assert.Equal(new TestRecord("id-1", 1, "restored"), await harness.Processor.GetAsync("id-1", TestContext.Current.CancellationToken));
+        await harness.AssertHasSingleRecordAsync("id-1");
     }
 
     [Fact]
     public async Task TryGetAsync_WhenErrorInfoFileBecomesReadableAgain_ReturnsRecordAndRestoresCommittedState()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
+        await using var harness = await Harness.CreateAsync();
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
-        var fileName = await ctx.GetCurrentFileNameAsync("id-1");
-        var filePath = Path.Combine(ctx.TablePath, fileName);
-        await File.WriteAllTextAsync(filePath, "{ invalid json");
-        var invalidResult = await ctx.Processor.TryGetAsync("id-1");
+        var fileName = await harness.GetCurrentFileNameAsync("id-1");
+        var filePath = Path.Combine(harness.TablePath, fileName);
+        await File.WriteAllTextAsync(filePath, "{ invalid json", TestContext.Current.CancellationToken);
+        var invalidResult = await harness.Processor.TryGetAsync("id-1", TestContext.Current.CancellationToken);
         Assert.Equal(FileErrorReason.Invalid, invalidResult.ErrorReason);
 
         var restored = new TestRecord("id-1", 1, "restored");
         await File.WriteAllTextAsync(
             filePath,
-            JsonSerializer.Serialize(restored, TestsJsonContext.Default.TestRecord));
+            JsonSerializer.Serialize(restored, TestsJsonContext.Default.TestRecord), TestContext.Current.CancellationToken);
 
-        var result = await ctx.Processor.TryGetAsync("id-1");
+        var result = await harness.Processor.TryGetAsync("id-1", TestContext.Current.CancellationToken);
         OperationResult operationResult = result;
 
         Assert.True(result.IsSuccess);
         Assert.Equal(restored, result.Record);
         Assert.Equal(fileName, result.FileName);
         Assert.Equal(fileName, operationResult.FileName);
-        await ctx.AssertHasSingleRecordAsync("id-1");
+        await harness.AssertHasSingleRecordAsync("id-1");
     }
 
     [Fact]
     public async Task GetAsync_WhenFileIdChanged_RemovesFileFromRequestedIdIndex()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        await ctx.Processor.UpsertAsync(new TestRecord("id-old", 1, "value"));
+        await using var harness = await Harness.CreateAsync();
+        await harness.Processor.UpsertAsync(new TestRecord("id-old", 1, "value"), TestContext.Current.CancellationToken);
 
-        var fileName = await ctx.GetCurrentFileNameAsync("id-old");
-        var filePath = Path.Combine(ctx.TablePath, fileName);
+        var fileName = await harness.GetCurrentFileNameAsync("id-old");
+        var filePath = Path.Combine(harness.TablePath, fileName);
         var changedRecord = new TestRecord("id-new", 1, "value-2");
-        await File.WriteAllTextAsync(filePath, JsonSerializer.Serialize(changedRecord, TestsJsonContext.Default.TestRecord));
+        await File.WriteAllTextAsync(filePath, JsonSerializer.Serialize(changedRecord, TestsJsonContext.Default.TestRecord), TestContext.Current.CancellationToken);
 
-        var result = await ctx.Processor.TryGetAsync("id-old");
+        var result = await harness.Processor.TryGetAsync("id-old", TestContext.Current.CancellationToken);
 
         Assert.True(result.IsSuccess);
         Assert.Null(result.Record);
         Assert.Equal(fileName, result.FileName);
-        Assert.Equal([(filePath, true)], ctx.ReconcileRequests);
-        await ctx.AssertIndexEmptyAsync();
+        Assert.Equal([(filePath, true)], harness.ReconcileRequests);
+        await harness.AssertIndexEmptyAsync();
     }
 
     [Fact]
     public async Task UpsertAsync_WhenWriteFails_CleansReservedFileFromIndex()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        ctx.FileStore.WriteExceptionFactory = _ => new IOException("write failure");
+        await using var harness = await Harness.CreateAsync();
+        harness.FileStore.WriteExceptionFactory = _ => new IOException("write failure");
 
         var exception = await Assert.ThrowsAsync<FileOperationException>(
-            () => ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value")));
+            () => harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken));
 
         Assert.Equal(FileErrorReason.Unavailable, exception.Reason);
         Assert.IsType<IOException>(exception.InnerException);
 
-        await ctx.AssertIndexEmptyAsync();
+        await harness.AssertIndexEmptyAsync();
     }
 
     [Fact]
     public async Task TryUpsertAsync_WhenWriteFails_ReturnsFileAccessFailedAndCleansReservedFileFromIndex()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        ctx.FileStore.WriteExceptionFactory = _ => new IOException("write failure");
+        await using var harness = await Harness.CreateAsync();
+        harness.FileStore.WriteExceptionFactory = _ => new IOException("write failure");
 
-        var result = await ctx.Processor.TryUpsertAsync(new TestRecord("id-1", 1, "value"));
+        var result = await harness.Processor.TryUpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
         Assert.Equal(FileErrorReason.Unavailable, result.ErrorReason);
         Assert.NotNull(result.FileName);
         Assert.IsType<IOException>(result.Error?.Exception);
-        await ctx.AssertIndexEmptyAsync();
+        await harness.AssertIndexEmptyAsync();
     }
 
     [Fact]
@@ -233,13 +233,13 @@ public class DatabaseOperationProcessorTests
             .WithProjection(record => record.Value)
             .UseJsonIndexPersistence(TestsJsonContext.Default.String, TestsJsonContext.Default.String)
             .Build();
-        await using var ctx = await TestContext.CreateAsync(definition);
+        await using var harness = await Harness.CreateAsync(definition);
 
         var ex = await Assert.ThrowsAsync<FileNameGenerationException>(
-            () => ctx.Processor.TryUpsertAsync(new TestRecord("id-1", 1, "value")));
+            () => harness.Processor.TryUpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken));
 
         Assert.IsType<NotSupportedException>(ex.InnerException);
-        await ctx.AssertIndexEmptyAsync();
+        await harness.AssertIndexEmptyAsync();
 
         static IEnumerable<string> ThrowingFileNames(TestRecord _)
         {
@@ -255,91 +255,91 @@ public class DatabaseOperationProcessorTests
     [Fact]
     public async Task UpsertAsync_WhenTransientWriteFailsOnce_RetriesAndWritesRecord()
     {
-        await using var ctx = await TestContext.CreateAsync();
+        await using var harness = await Harness.CreateAsync();
 
         var attempts = 0;
-        ctx.FileStore.WriteExceptionFactory = _ => ++attempts == 1
+        harness.FileStore.WriteExceptionFactory = _ => ++attempts == 1
             ? CreateTransientIOException()
             : null;
 
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
         Assert.Equal(2, attempts);
-        await ctx.AssertHasSingleRecordAsync("id-1");
+        await harness.AssertHasSingleRecordAsync("id-1");
     }
 
     [Fact]
     public async Task UpsertAsync_WhenTableDirectoryWasDeleted_RecreatesDirectoryAndWritesRecord()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        Directory.Delete(ctx.TablePath, recursive: true);
+        await using var harness = await Harness.CreateAsync();
+        Directory.Delete(harness.TablePath, recursive: true);
 
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
-        Assert.True(Directory.Exists(ctx.TablePath));
-        var fileName = await ctx.GetCurrentFileNameAsync("id-1");
-        Assert.True(File.Exists(Path.Combine(ctx.TablePath, fileName)));
-        await ctx.AssertHasSingleRecordAsync("id-1");
+        Assert.True(Directory.Exists(harness.TablePath));
+        var fileName = await harness.GetCurrentFileNameAsync("id-1");
+        Assert.True(File.Exists(Path.Combine(harness.TablePath, fileName)));
+        await harness.AssertHasSingleRecordAsync("id-1");
     }
 
     [Fact]
     public async Task DeleteAsync_WhenRecordHasMultipleFiles_DeletesAllFilesAndCleansIndex()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "base"));
+        await using var harness = await Harness.CreateAsync();
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "base"), TestContext.Current.CancellationToken);
 
-        var primaryFileName = await ctx.GetCurrentFileNameAsync("id-1");
+        var primaryFileName = await harness.GetCurrentFileNameAsync("id-1");
         var extraFileName = "id-1-extra.json";
-        var extraPath = Path.Combine(ctx.TablePath, extraFileName);
+        var extraPath = Path.Combine(harness.TablePath, extraFileName);
         await File.WriteAllTextAsync(
             extraPath,
-            JsonSerializer.Serialize(new TestRecord("id-1", 1, "extra"), TestsJsonContext.Default.TestRecord));
+            JsonSerializer.Serialize(new TestRecord("id-1", 1, "extra"), TestsJsonContext.Default.TestRecord), TestContext.Current.CancellationToken);
 
-        using (var scope = await ctx.Index.EnterSharedScopeAsync())
-        using (var recordScope = await scope.LockRecordAsync("id-1"))
+        using (var scope = await harness.Index.EnterSharedScopeAsync(TestContext.Current.CancellationToken))
+        using (var recordScope = await scope.LockRecordAsync("id-1", TestContext.Current.CancellationToken))
         {
             var fp = new FileStore().GetFileFingerprint(extraPath);
             var upsertResult = recordScope.Upsert(extraFileName, fp, 1, new TestRecord("id-1", 1, "extra"));
             Assert.NotEqual(IndexOperationResult.BlockedByAnotherId, upsertResult);
         }
 
-        await ctx.Processor.DeleteAsync("id-1");
+        await harness.Processor.DeleteAsync("id-1", TestContext.Current.CancellationToken);
 
-        Assert.False(File.Exists(Path.Combine(ctx.TablePath, primaryFileName)));
+        Assert.False(File.Exists(Path.Combine(harness.TablePath, primaryFileName)));
         Assert.False(File.Exists(extraPath));
-        await ctx.AssertIndexEmptyAsync();
+        await harness.AssertIndexEmptyAsync();
     }
 
     [Fact]
     public async Task DeleteAsync_WhenTransientDeleteFailsOnce_RetriesAndDeletesRecord()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
+        await using var harness = await Harness.CreateAsync();
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
         var attempts = 0;
-        ctx.FileStore.DeleteExceptionFactory = _ => ++attempts == 1
+        harness.FileStore.DeleteExceptionFactory = _ => ++attempts == 1
             ? CreateTransientIOException()
             : null;
 
-        await ctx.Processor.DeleteAsync("id-1");
+        await harness.Processor.DeleteAsync("id-1", TestContext.Current.CancellationToken);
 
         Assert.Equal(2, attempts);
-        await ctx.AssertIndexEmptyAsync();
+        await harness.AssertIndexEmptyAsync();
     }
 
     [Fact]
     public async Task TryDeleteAsync_WhenDeleteFails_ReturnsFileAccessFailedAndKeepsRecordInIndex()
     {
-        await using var ctx = await TestContext.CreateAsync();
-        await ctx.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"));
-        ctx.FileStore.DeleteExceptionFactory = _ => new IOException("delete failure");
+        await using var harness = await Harness.CreateAsync();
+        await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
+        harness.FileStore.DeleteExceptionFactory = _ => new IOException("delete failure");
 
-        var result = await ctx.Processor.TryDeleteAsync("id-1");
+        var result = await harness.Processor.TryDeleteAsync("id-1", TestContext.Current.CancellationToken);
 
         Assert.Equal(FileErrorReason.Unavailable, result.ErrorReason);
-        Assert.Equal(await ctx.GetCurrentFileNameAsync("id-1"), result.FileName);
+        Assert.Equal(await harness.GetCurrentFileNameAsync("id-1"), result.FileName);
         Assert.IsType<IOException>(result.Error?.Exception);
-        await ctx.AssertHasSingleRecordAsync("id-1");
+        await harness.AssertHasSingleRecordAsync("id-1");
     }
 
     private static IOException CreateTransientIOException()
@@ -351,7 +351,7 @@ public class DatabaseOperationProcessorTests
             : new IOException("transient", unixAgain);
     }
 
-    private sealed class TestContext : IAsyncDisposable
+    private sealed class Harness : IAsyncDisposable
     {
         private readonly string _rootPath;
 
@@ -361,7 +361,7 @@ public class DatabaseOperationProcessorTests
         public DatabaseOperationProcessor<string, TestRecord, string> Processor { get; }
         public List<(string Path, bool MinBackoff)> ReconcileRequests { get; }
 
-        private TestContext(
+        private Harness(
             string rootPath,
             string tablePath,
             TableIndex<string, TestRecord, string> index,
@@ -377,7 +377,7 @@ public class DatabaseOperationProcessorTests
             ReconcileRequests = reconcileRequests;
         }
 
-        public static async Task<TestContext> CreateAsync(TableDefinition<string, TestRecord, string>? definition = null)
+        public static async Task<Harness> CreateAsync(TableDefinition<string, TestRecord, string>? definition = null)
         {
             definition ??= _definition;
             var rootPath = Directory.CreateTempSubdirectory().FullName;
@@ -433,7 +433,7 @@ public class DatabaseOperationProcessorTests
                 (path, minBackoff) => reconcileRequests.Add((path, minBackoff)),
                 logger: null);
 
-            return new TestContext(rootPath, tablePath, index, fileStore, processor, reconcileRequests);
+            return new Harness(rootPath, tablePath, index, fileStore, processor, reconcileRequests);
         }
 
         public async Task<string> GetCurrentFileNameAsync(string id)

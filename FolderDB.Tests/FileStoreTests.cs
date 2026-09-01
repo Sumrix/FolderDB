@@ -15,7 +15,7 @@ public class FileStoreTests
         try
         {
             var path = Path.Combine(rootPath, "record.json");
-            await File.WriteAllTextAsync(path, "{}");
+            await File.WriteAllTextAsync(path, "{}", TestContext.Current.CancellationToken);
             var store = new FileStore();
 
             var result = await store.ReadAsync<string>(

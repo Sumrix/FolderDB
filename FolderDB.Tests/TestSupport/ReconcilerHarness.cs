@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FolderDB.Tests.TestSupport;
 
-internal sealed class ReconcilerTestContext : IAsyncDisposable
+internal sealed class ReconcilerHarness : IAsyncDisposable
 {
     private readonly string _rootPath;
     private readonly string _tablePath;
@@ -19,7 +19,7 @@ internal sealed class ReconcilerTestContext : IAsyncDisposable
     private readonly FileReconciler<string, TestRecord, string> _fileReconciler;
     private readonly DirectoryReconciler<string, TestRecord, string> _directoryReconciler;
 
-    private ReconcilerTestContext(
+    private ReconcilerHarness(
         string rootPath,
         string tablePath,
         InlineRetryScheduler retryScheduler,
@@ -54,7 +54,7 @@ internal sealed class ReconcilerTestContext : IAsyncDisposable
             (_, cancellationToken) => _directoryReconciler.ReconcileAsync(cancellationToken));
     }
 
-    public static async Task<ReconcilerTestContext> CreateAsync(IFileStore? fileStore = null)
+    public static async Task<ReconcilerHarness> CreateAsync(IFileStore? fileStore = null)
     {
         var recordSchema = new RecordSchemaBuilder()
             .StartWith<LegacyTestRecord>(0)
@@ -98,7 +98,7 @@ internal sealed class ReconcilerTestContext : IAsyncDisposable
             (path, minBackoff) => retryScheduler.Enqueue(path, fileReconciler.ReconcileAsync, minBackoff),
             NullLogger<DirectoryReconciler<string, TestRecord, string>>.Instance);
 
-        return new ReconcilerTestContext(
+        return new ReconcilerHarness(
             rootPath,
             tablePath,
             retryScheduler,

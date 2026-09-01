@@ -33,7 +33,7 @@ public class TimeBucketQueueManagerTests
 
         // The competing item asks for the next bucket, but it must lose to the in flight
         // progression, so no second attempt may happen while the backoff is still running.
-        await Task.Delay(_backoffQuietWaitMs);
+        await Task.Delay(_backoffQuietWaitMs, TestContext.Current.CancellationToken);
         Assert.Equal(1, probe.Attempts);
     }
 
@@ -62,7 +62,7 @@ public class TimeBucketQueueManagerTests
 
         // Long enough for the backed off item to be back in the dictionary, short enough that
         // its own next attempt is still far away.
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
         manager.Enqueue("alpha", probe.ProcessAsync, minBackoff: true);
 
         Assert.True(await probe.WaitForNextAttemptAsync(_minBackoffWaitMs));

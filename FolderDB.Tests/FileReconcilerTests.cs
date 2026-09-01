@@ -23,44 +23,44 @@ public class FileReconcilerTests
     [Fact]
     public async Task ReconcileAsync_NewReadableFile_AddsItToIndex()
     {
-        await using var fixture = await Fixture.CreateUnversionedAsync();
-        var path = await fixture.WriteAsync("record.json", new TestRecord("id-1", 1, "value"));
+        await using var harness = await Harness.CreateUnversionedAsync();
+        var path = await harness.WriteAsync("record.json", new TestRecord("id-1", 1, "value"));
 
-        var result = await fixture.Reconciler.ReconcileAsync(path, default);
+        var result = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.Complete);
-        fixture.Index.Records["id-1"].CurrentFileName.Should().Be("record.json");
-        fixture.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().BeNull();
+        harness.Index.Records["id-1"].CurrentFileName.Should().Be("record.json");
+        harness.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().BeNull();
     }
 
     [Fact]
     public async Task ReconcileAsync_WithoutVersioning_DoesNotRunFileUpdateLogic()
     {
         var scriptedStore = new ScriptedFileStore(new FileStore());
-        await using var fixture = await Fixture.CreateUnversionedAsync(scriptedStore);
-        var path = await fixture.WriteAsync("record.json", new TestRecord("id-1", 1, "first"));
+        await using var harness = await Harness.CreateUnversionedAsync(scriptedStore);
+        var path = await harness.WriteAsync("record.json", new TestRecord("id-1", 1, "first"));
         scriptedStore.EnqueueWriteResult(
             path,
             () => throw new InvalidOperationException(
                 "File update logic must not write an unversioned file."));
 
-        await fixture.Reconciler.ReconcileAsync(path, default);
+        await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
     }
 
     [Fact]
     public async Task ReconcileAsync_UnexpectedException_CompletesWithoutRetry()
     {
         var scriptedStore = new ScriptedFileStore(new FileStore());
-        await using var fixture = await Fixture.CreateUnversionedAsync(scriptedStore);
-        var path = await fixture.WriteAsync("record.json", new TestRecord("id-1", 1, "value"));
+        await using var harness = await Harness.CreateUnversionedAsync(scriptedStore);
+        var path = await harness.WriteAsync("record.json", new TestRecord("id-1", 1, "value"));
         scriptedStore.EnqueueFingerprintResult(
             path,
             () => throw new InvalidOperationException("Unexpected reconciliation failure."));
 
-        var result = await fixture.Reconciler.ReconcileAsync(path, default);
+        var result = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.Complete);
-        fixture.Index.Records.Should().NotContainKey("id-1");
+        harness.Index.Records.Should().NotContainKey("id-1");
     }
 
     [Theory]
@@ -70,35 +70,35 @@ public class FileReconcilerTests
         string indexedId,
         string fileId)
     {
-        await using var fixture = await Fixture.CreateUnversionedAsync();
-        var path = await fixture.WriteAsync("record.json", new TestRecord(indexedId, 1, "first"));
-        await fixture.Reconciler.ReconcileAsync(path, default);
+        await using var harness = await Harness.CreateUnversionedAsync();
+        var path = await harness.WriteAsync("record.json", new TestRecord(indexedId, 1, "first"));
+        await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
-        await fixture.WriteAsync("record.json", new TestRecord(fileId, 1, "second"));
-        var result = await fixture.Reconciler.ReconcileAsync(path, default);
+        await harness.WriteAsync("record.json", new TestRecord(fileId, 1, "second"));
+        var result = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.Complete);
-        fixture.Index.Records.Should().NotContainKey(indexedId);
-        fixture.Index.Records[fileId].CurrentFileName.Should().Be("record.json");
-        fixture.Index.Records[fileId].GetCurrentFileState().Projection.Should().Be("second");
+        harness.Index.Records.Should().NotContainKey(indexedId);
+        harness.Index.Records[fileId].CurrentFileName.Should().Be("record.json");
+        harness.Index.Records[fileId].GetCurrentFileState().Projection.Should().Be("second");
     }
 
     [Fact]
     public async Task ReconcileAsync_FingerprintChangesAfterLock_UsesLatestReadResult()
     {
         var scriptedStore = new ScriptedFileStore(new FileStore());
-        await using var fixture = await Fixture.CreateUnversionedAsync(scriptedStore);
-        var path = await fixture.WriteAsync("record.json", new TestRecord("id-1", 1, "first"));
+        await using var harness = await Harness.CreateUnversionedAsync(scriptedStore);
+        var path = await harness.WriteAsync("record.json", new TestRecord("id-1", 1, "first"));
         var firstFingerprint = new FileStore().GetFileFingerprint(path);
         scriptedStore.EnqueueFingerprintResult(path, firstFingerprint);
         scriptedStore.EnqueueFingerprintResult(
             path,
             () => ReplaceFile(path, new TestRecord("id-1", 1, "second")));
 
-        var result = await fixture.Reconciler.ReconcileAsync(path, default);
+        var result = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.Complete);
-        var state = fixture.Index.Records["id-1"].GetCurrentFileState();
+        var state = harness.Index.Records["id-1"].GetCurrentFileState();
         state.Projection.Should().Be("second");
         state.Fingerprint.Should().Be(new FileStore().GetFileFingerprint(path));
     }
@@ -107,24 +107,24 @@ public class FileReconcilerTests
     public async Task ReconcileAsync_FileIdChangesAfterLock_ReturnsMinRetryWithoutMutation()
     {
         var scriptedStore = new ScriptedFileStore(new FileStore());
-        await using var fixture = await Fixture.CreateUnversionedAsync(scriptedStore);
-        var path = await fixture.WriteAsync("record.json", new TestRecord("id-1", 1, "first"));
+        await using var harness = await Harness.CreateUnversionedAsync(scriptedStore);
+        var path = await harness.WriteAsync("record.json", new TestRecord("id-1", 1, "first"));
         var firstFingerprint = new FileStore().GetFileFingerprint(path);
         scriptedStore.EnqueueFingerprintResult(path, firstFingerprint);
         scriptedStore.EnqueueFingerprintResult(
             path,
             () => ReplaceFile(path, new TestRecord("id-2", 1, "second")));
 
-        var firstResult = await fixture.Reconciler.ReconcileAsync(path, default);
+        var firstResult = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         firstResult.Should().Be(RetryDecision.RetryWithMinBackoff);
-        fixture.Index.Records.Should().BeEmpty();
+        harness.Index.Records.Should().BeEmpty();
 
-        var secondResult = await fixture.Reconciler.ReconcileAsync(path, default);
+        var secondResult = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         secondResult.Should().Be(RetryDecision.Complete);
-        fixture.Index.Records.Should().ContainSingle().Which.Key.Should().Be("id-2");
-        fixture.Index.Records["id-2"].GetCurrentFileState().Projection.Should().Be("second");
+        harness.Index.Records.Should().ContainSingle().Which.Key.Should().Be("id-2");
+        harness.Index.Records["id-2"].GetCurrentFileState().Projection.Should().Be("second");
     }
 
     // The pre-read fingerprint says the file exists, the read says it does not. Feeding the stale
@@ -134,9 +134,9 @@ public class FileReconcilerTests
     public async Task ReconcileAsync_FileDisappearsDuringRead_UsesPostReadObservation()
     {
         var scriptedStore = new ScriptedFileStore(new FileStore());
-        await using var fixture = await Fixture.CreateUnversionedAsync(scriptedStore);
-        var path = await fixture.WriteAsync("record.json", new TestRecord("id-1", 1, "value"));
-        await fixture.Reconciler.ReconcileAsync(path, default);
+        await using var harness = await Harness.CreateUnversionedAsync(scriptedStore);
+        var path = await harness.WriteAsync("record.json", new TestRecord("id-1", 1, "value"));
+        await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         scriptedStore.EnqueueFingerprintResult(
             path,
@@ -147,38 +147,38 @@ public class FileReconcilerTests
             new FileFingerprint(null, null, Exists: false));
         scriptedStore.EnqueueFingerprintResult(path, new FileFingerprint(null, null, Exists: false));
 
-        var result = await fixture.Reconciler.ReconcileAsync(path, default);
+        var result = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.Complete);
-        fixture.Index.Records.Should().NotContainKey("id-1");
+        harness.Index.Records.Should().NotContainKey("id-1");
     }
 
     [Fact]
     public async Task ReconcileAsync_MissingIndexedFile_RemovesItFromIndex()
     {
-        await using var fixture = await Fixture.CreateUnversionedAsync();
-        var path = await fixture.WriteAsync("record.json", new TestRecord("id-1", 1, "value"));
-        await fixture.Reconciler.ReconcileAsync(path, default);
+        await using var harness = await Harness.CreateUnversionedAsync();
+        var path = await harness.WriteAsync("record.json", new TestRecord("id-1", 1, "value"));
+        await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         File.Delete(path);
-        var result = await fixture.Reconciler.ReconcileAsync(path, default);
+        var result = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.Complete);
-        fixture.Index.Records.Should().NotContainKey("id-1");
+        harness.Index.Records.Should().NotContainKey("id-1");
     }
 
     [Fact]
     public async Task ReconcileAsync_InvalidIndexedFile_StoresErrorState()
     {
-        await using var fixture = await Fixture.CreateUnversionedAsync();
-        var path = await fixture.WriteAsync("record.json", new TestRecord("id-1", 1, "value"));
-        await fixture.Reconciler.ReconcileAsync(path, default);
+        await using var harness = await Harness.CreateUnversionedAsync();
+        var path = await harness.WriteAsync("record.json", new TestRecord("id-1", 1, "value"));
+        await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
-        await File.WriteAllTextAsync(path, "invalid json");
-        var result = await fixture.Reconciler.ReconcileAsync(path, default);
+        await File.WriteAllTextAsync(path, "invalid json", TestContext.Current.CancellationToken);
+        var result = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.Complete);
-        var state = fixture.Index.Records["id-1"].GetCurrentFileState();
+        var state = harness.Index.Records["id-1"].GetCurrentFileState();
         state.ErrorInfo.Should().NotBeNull();
         state.ErrorInfo!.Reason.Should().Be(FileErrorReason.Invalid);
     }
@@ -186,18 +186,18 @@ public class FileReconcilerTests
     [Fact]
     public async Task ReconcileAsync_LegacyCurrentFile_UpdatesFileAndIndexedPhysicalState()
     {
-        await using var fixture = await Fixture.CreateVersionedAsync();
-        var path = await fixture.WriteLegacyAsync("record.json", new LegacyTestRecord("id-1", 0, "legacy"));
+        await using var harness = await Harness.CreateVersionedAsync();
+        var path = await harness.WriteLegacyAsync("record.json", new LegacyTestRecord("id-1", 0, "legacy"));
 
-        var result = await fixture.Reconciler.ReconcileAsync(path, default);
+        var result = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.Complete);
-        var persisted = await File.ReadAllTextAsync(path);
+        var persisted = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
         JsonSerializer.Deserialize(persisted, TestsJsonContext.Default.TestRecord)
             .Should().Be(new TestRecord("id-1", 1, "migrated-legacy"));
         persisted.Should().NotContain("LegacyValue");
 
-        var state = fixture.Index.Records["id-1"].GetCurrentFileState();
+        var state = harness.Index.Records["id-1"].GetCurrentFileState();
         state.SchemaVersion.Should().Be(1);
         state.Fingerprint.Should().Be(new FileStore().GetFileFingerprint(path));
     }
@@ -205,25 +205,25 @@ public class FileReconcilerTests
     [Fact]
     public async Task ReconcileAsync_LegacyDormantFile_DoesNotUpdateFile()
     {
-        await using var fixture = await Fixture.CreateVersionedAsync();
-        var legacyPath = await fixture.WriteLegacyAsync("legacy.json", new LegacyTestRecord("id-1", 0, "legacy"));
-        var currentPath = await fixture.WriteAsync("current.json", new TestRecord("id-1", 1, "current"));
+        await using var harness = await Harness.CreateVersionedAsync();
+        var legacyPath = await harness.WriteLegacyAsync("legacy.json", new LegacyTestRecord("id-1", 0, "legacy"));
+        var currentPath = await harness.WriteAsync("current.json", new TestRecord("id-1", 1, "current"));
 
-        await fixture.Reconciler.ReconcileAsync(currentPath, default);
-        var result = await fixture.Reconciler.ReconcileAsync(legacyPath, default);
+        await harness.Reconciler.ReconcileAsync(currentPath, TestContext.Current.CancellationToken);
+        var result = await harness.Reconciler.ReconcileAsync(legacyPath, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.Complete);
-        fixture.Index.Records["id-1"].CurrentFileName.Should().Be("current.json");
-        fixture.Index.Records["id-1"].Files["legacy.json"].SchemaVersion.Should().Be(0);
-        (await File.ReadAllTextAsync(legacyPath)).Should().Contain("LegacyValue");
+        harness.Index.Records["id-1"].CurrentFileName.Should().Be("current.json");
+        harness.Index.Records["id-1"].Files["legacy.json"].SchemaVersion.Should().Be(0);
+        (await File.ReadAllTextAsync(legacyPath, TestContext.Current.CancellationToken)).Should().Contain("LegacyValue");
     }
 
     [Fact]
     public async Task ReconcileAsync_TransientFormatUpdateWriteFailure_ReturnsRetryAndKeepsPhysicalVersion()
     {
         var scriptedStore = new ScriptedFileStore(new FileStore());
-        await using var fixture = await Fixture.CreateVersionedAsync(scriptedStore);
-        var path = await fixture.WriteLegacyAsync("record.json", new LegacyTestRecord("id-1", 0, "legacy"));
+        await using var harness = await Harness.CreateVersionedAsync(scriptedStore);
+        var path = await harness.WriteLegacyAsync("record.json", new LegacyTestRecord("id-1", 0, "legacy"));
         scriptedStore.EnqueueWriteResult(
             path,
             new FileWriteResult(
@@ -233,94 +233,94 @@ public class FileReconcilerTests
                     FileErrorPersistence.Transient,
                     new IOException("transient write"))));
 
-        var firstResult = await fixture.Reconciler.ReconcileAsync(path, default);
+        var firstResult = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         firstResult.Should().Be(RetryDecision.RetryWithBackoff);
-        fixture.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().Be(0);
-        (await File.ReadAllTextAsync(path)).Should().Contain("LegacyValue");
+        harness.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().Be(0);
+        (await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken)).Should().Contain("LegacyValue");
 
-        var secondResult = await fixture.Reconciler.ReconcileAsync(path, default);
+        var secondResult = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         secondResult.Should().Be(RetryDecision.Complete);
-        fixture.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().Be(1);
+        harness.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().Be(1);
     }
 
     [Fact]
     public async Task ReconcileAsync_CurrentVersionedFileWithMissingIndexedSchema_BackfillsSchemaVersion()
     {
-        await using var fixture = await Fixture.CreateVersionedAsync();
+        await using var harness = await Harness.CreateVersionedAsync();
         var record = new TestRecord("id-1", 1, "current");
-        var path = await fixture.WriteAsync("record.json", record);
+        var path = await harness.WriteAsync("record.json", record);
         var fingerprint = new FileStore().GetFileFingerprint(path);
-        fixture.Engine.Upsert("id-1", "record.json", fingerprint, null, record)
+        harness.Engine.Upsert("id-1", "record.json", fingerprint, null, record)
             .Should().Be(IndexOperationResult.Applied);
-        fixture.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().BeNull();
+        harness.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().BeNull();
 
-        var result = await fixture.Reconciler.ReconcileAsync(path, default);
+        var result = await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.Complete);
-        fixture.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().Be(1);
+        harness.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().Be(1);
     }
 
     [Fact]
     public async Task ContinueAfterRead_WithHeldMatchingLock_UpdatesIndex()
     {
-        await using var fixture = await Fixture.CreateUnversionedAsync();
-        var path = await fixture.WriteAsync("record.json", new TestRecord("id-1", 1, "first"));
-        await fixture.Reconciler.ReconcileAsync(path, default);
+        await using var harness = await Harness.CreateUnversionedAsync();
+        var path = await harness.WriteAsync("record.json", new TestRecord("id-1", 1, "first"));
+        await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
-        await fixture.WriteAsync("record.json", new TestRecord("ID-1", 1, "second"));
-        var readResult = await fixture.Store.ReadAsync(path, default);
-        using var sharedScope = await fixture.Index.EnterSharedScopeAsync();
-        using var recordScope = await sharedScope.LockRecordAsync("id-1");
+        await harness.WriteAsync("record.json", new TestRecord("ID-1", 1, "second"));
+        var readResult = await harness.Store.ReadAsync(path, TestContext.Current.CancellationToken);
+        using var sharedScope = await harness.Index.EnterSharedScopeAsync(TestContext.Current.CancellationToken);
+        using var recordScope = await sharedScope.LockRecordAsync("id-1", TestContext.Current.CancellationToken);
 
-        var result = await fixture.Reconciler.ContinueAfterReadAsync(
+        var result = await harness.Reconciler.ContinueAfterReadAsync(
             path,
             sharedScope,
             recordScope,
-            readResult);
+            readResult, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.Complete);
-        fixture.Index.Records["id-1"].GetCurrentFileState().Projection.Should().Be("second");
+        harness.Index.Records["id-1"].GetCurrentFileState().Projection.Should().Be("second");
     }
 
     [Fact]
     public async Task ContinueAfterRead_WithDifferentFileId_DeletesStaleIndexEntryAndRequestsRetry()
     {
-        await using var fixture = await Fixture.CreateUnversionedAsync();
-        var path = await fixture.WriteAsync("record.json", new TestRecord("id-1", 1, "first"));
-        await fixture.Reconciler.ReconcileAsync(path, default);
+        await using var harness = await Harness.CreateUnversionedAsync();
+        var path = await harness.WriteAsync("record.json", new TestRecord("id-1", 1, "first"));
+        await harness.Reconciler.ReconcileAsync(path, TestContext.Current.CancellationToken);
 
-        await fixture.WriteAsync("record.json", new TestRecord("id-2", 1, "second"));
-        var readResult = await fixture.Store.ReadAsync(path, default);
-        using var sharedScope = await fixture.Index.EnterSharedScopeAsync();
-        using var recordScope = await sharedScope.LockRecordAsync("id-1");
+        await harness.WriteAsync("record.json", new TestRecord("id-2", 1, "second"));
+        var readResult = await harness.Store.ReadAsync(path, TestContext.Current.CancellationToken);
+        using var sharedScope = await harness.Index.EnterSharedScopeAsync(TestContext.Current.CancellationToken);
+        using var recordScope = await sharedScope.LockRecordAsync("id-1", TestContext.Current.CancellationToken);
 
-        var result = await fixture.Reconciler.ContinueAfterReadAsync(
+        var result = await harness.Reconciler.ContinueAfterReadAsync(
             path,
             sharedScope,
             recordScope,
-            readResult);
+            readResult, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.RetryWithMinBackoff);
-        fixture.Index.Records.Should().NotContainKey("id-1");
-        fixture.Index.Records.Should().NotContainKey("id-2");
+        harness.Index.Records.Should().NotContainKey("id-1");
+        harness.Index.Records.Should().NotContainKey("id-2");
     }
 
     [Fact]
     public async Task ContinueAfterRead_LegacyFile_UpdatesIndexAndRequestsRetry()
     {
-        await using var fixture = await Fixture.CreateVersionedAsync();
-        var path = await fixture.WriteLegacyAsync("record.json", new LegacyTestRecord("id-1", 0, "legacy"));
-        var readResult = await fixture.Store.ReadAsync(path, default);
-        using var sharedScope = await fixture.Index.EnterSharedScopeAsync();
-        using var recordScope = await sharedScope.LockRecordAsync("id-1");
+        await using var harness = await Harness.CreateVersionedAsync();
+        var path = await harness.WriteLegacyAsync("record.json", new LegacyTestRecord("id-1", 0, "legacy"));
+        var readResult = await harness.Store.ReadAsync(path, TestContext.Current.CancellationToken);
+        using var sharedScope = await harness.Index.EnterSharedScopeAsync(TestContext.Current.CancellationToken);
+        using var recordScope = await sharedScope.LockRecordAsync("id-1", TestContext.Current.CancellationToken);
 
-        var result = await fixture.Reconciler.ContinueAfterReadAsync(path, sharedScope, recordScope, readResult);
+        var result = await harness.Reconciler.ContinueAfterReadAsync(path, sharedScope, recordScope, readResult, TestContext.Current.CancellationToken);
 
         result.Should().Be(RetryDecision.RetryWithMinBackoff);
-        fixture.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().Be(0);
-        (await File.ReadAllTextAsync(path)).Should().Contain("LegacyValue");
+        harness.Index.Records["id-1"].GetCurrentFileState().SchemaVersion.Should().Be(0);
+        (await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken)).Should().Contain("LegacyValue");
     }
 
     private static FileFingerprint ReplaceFile(
@@ -331,11 +331,11 @@ public class FileReconcilerTests
         return new FileStore().GetFileFingerprint(path);
     }
 
-    private sealed class Fixture : IAsyncDisposable
+    private sealed class Harness : IAsyncDisposable
     {
         private readonly string _rootPath;
 
-        private Fixture(
+        private Harness(
             string rootPath,
             string tablePath,
             RecordScopedIndexEngine<string, TestRecord, string> engine,
@@ -357,14 +357,14 @@ public class FileReconcilerTests
         public RecordStore<string, TestRecord> Store { get; }
         public FileReconciler<string, TestRecord, string> Reconciler { get; }
 
-        public static async Task<Fixture> CreateUnversionedAsync(IFileStore? fileStore = null)
+        public static async Task<Harness> CreateUnversionedAsync(IFileStore? fileStore = null)
         {
             var policy = new RecordSchemaBuilder()
                 .WithoutVersioning(TestsJsonContext.Default.TestRecord);
             return await CreateAsync(policy, fileStore);
         }
 
-        public static async Task<Fixture> CreateVersionedAsync(IFileStore? fileStore = null)
+        public static async Task<Harness> CreateVersionedAsync(IFileStore? fileStore = null)
         {
             var policy = new RecordSchemaBuilder()
                 .StartWith<LegacyTestRecord>(0)
@@ -373,7 +373,7 @@ public class FileReconcilerTests
             return await CreateAsync(policy, fileStore);
         }
 
-        private static async Task<Fixture> CreateAsync(
+        private static async Task<Harness> CreateAsync(
             RecordSchema<TestRecord> policy,
             IFileStore? fileStore)
         {

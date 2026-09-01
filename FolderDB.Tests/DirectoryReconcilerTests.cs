@@ -11,19 +11,19 @@ public class DirectoryReconcilerTests
     [Fact]
     public async Task RequestDirectoryReconcile_WhenTableDirectoryMissing_ClearsIndex()
     {
-        await using var ctx = await ReconcilerTestContext.CreateAsync();
-        var filePath = await ctx.WriteRecordAsync("alpha.json", new("id-1", 1, "value"));
-        ctx.RequestFileReconcile(filePath);
-        await ctx.RetryScheduler.RunAllAsync();
-        AssertNoRetry(ctx);
+        await using var harness = await ReconcilerHarness.CreateAsync();
+        var filePath = await harness.WriteRecordAsync("alpha.json", new("id-1", 1, "value"));
+        harness.RequestFileReconcile(filePath);
+        await harness.RetryScheduler.RunAllAsync(TestContext.Current.CancellationToken);
+        AssertNoRetry(harness);
 
-        Directory.Delete(ctx.TablePath, recursive: true);
+        Directory.Delete(harness.TablePath, recursive: true);
 
-        ctx.RequestDirectoryReconcile();
-        await ctx.RetryScheduler.RunAllAsync();
-        AssertNoRetry(ctx);
+        harness.RequestDirectoryReconcile();
+        await harness.RetryScheduler.RunAllAsync(TestContext.Current.CancellationToken);
+        AssertNoRetry(harness);
 
-        using var scope = await ctx.Index.EnterSharedScopeAsync();
+        using var scope = await harness.Index.EnterSharedScopeAsync(TestContext.Current.CancellationToken);
         Assert.Empty(scope.Records);
         Assert.Empty(scope.Files);
     }
@@ -31,21 +31,21 @@ public class DirectoryReconcilerTests
     [Fact]
     public async Task RequestDirectoryReconcile_WhenIndexedFileDeleted_RemovesDeletedFileFromIndex()
     {
-        await using var ctx = await ReconcilerTestContext.CreateAsync();
-        await ctx.WriteRecordAsync("a.json", new("id-a", 1, "one"));
-        var bPath = await ctx.WriteRecordAsync("b.json", new("id-b", 1, "two"));
+        await using var harness = await ReconcilerHarness.CreateAsync();
+        await harness.WriteRecordAsync("a.json", new("id-a", 1, "one"));
+        var bPath = await harness.WriteRecordAsync("b.json", new("id-b", 1, "two"));
 
-        ctx.RequestDirectoryReconcile();
-        await ctx.RetryScheduler.RunAllAsync();
-        AssertNoRetry(ctx);
+        harness.RequestDirectoryReconcile();
+        await harness.RetryScheduler.RunAllAsync(TestContext.Current.CancellationToken);
+        AssertNoRetry(harness);
 
         File.Delete(bPath);
 
-        ctx.RequestDirectoryReconcile();
-        await ctx.RetryScheduler.RunAllAsync();
-        AssertNoRetry(ctx);
+        harness.RequestDirectoryReconcile();
+        await harness.RetryScheduler.RunAllAsync(TestContext.Current.CancellationToken);
+        AssertNoRetry(harness);
 
-        using var scope = await ctx.Index.EnterSharedScopeAsync();
+        using var scope = await harness.Index.EnterSharedScopeAsync(TestContext.Current.CancellationToken);
         Assert.Single(scope.Records);
         Assert.Single(scope.Files);
         Assert.True(scope.Records.ContainsKey("id-a"));
@@ -56,16 +56,16 @@ public class DirectoryReconcilerTests
     [Fact]
     public async Task RequestDirectoryReconcile_WhenDirectoryHasMixedFiles_BuildsIndexAndMigratesLegacy()
     {
-        await using var ctx = await ReconcilerTestContext.CreateAsync();
-        await ctx.WriteRecordAsync("a.json", new("id-a", 1, "one"));
-        var legacyPath = await ctx.WriteLegacyRecordAsync("legacy.json", new("id-legacy", 0, "old"));
-        await File.WriteAllTextAsync(Path.Combine(ctx.TablePath, "broken.json"), "{ not json");
+        await using var harness = await ReconcilerHarness.CreateAsync();
+        await harness.WriteRecordAsync("a.json", new("id-a", 1, "one"));
+        var legacyPath = await harness.WriteLegacyRecordAsync("legacy.json", new("id-legacy", 0, "old"));
+        await File.WriteAllTextAsync(Path.Combine(harness.TablePath, "broken.json"), "{ not json", TestContext.Current.CancellationToken);
 
-        ctx.RequestDirectoryReconcile();
-        await ctx.RetryScheduler.RunAllAsync();
-        AssertNoRetry(ctx);
+        harness.RequestDirectoryReconcile();
+        await harness.RetryScheduler.RunAllAsync(TestContext.Current.CancellationToken);
+        AssertNoRetry(harness);
 
-        using (var scope = await ctx.Index.EnterSharedScopeAsync())
+        using (var scope = await harness.Index.EnterSharedScopeAsync(TestContext.Current.CancellationToken))
         {
             Assert.Equal(2, scope.Records.Count);
             Assert.Equal(2, scope.Files.Count);
@@ -77,7 +77,7 @@ public class DirectoryReconcilerTests
             Assert.Equal("migrated-old", scope.Files["legacy.json"].Projection);
         }
 
-        var persistedLegacy = await File.ReadAllTextAsync(legacyPath);
+        var persistedLegacy = await File.ReadAllTextAsync(legacyPath, TestContext.Current.CancellationToken);
         var persistedLegacyRecord = JsonSerializer.Deserialize(persistedLegacy, TestsJsonContext.Default.TestRecord);
         Assert.Equal(new TestRecord("id-legacy", 1, "migrated-old"), persistedLegacyRecord);
         Assert.DoesNotContain("LegacyValue", persistedLegacy, StringComparison.Ordinal);
@@ -86,17 +86,17 @@ public class DirectoryReconcilerTests
     [Fact]
     public async Task RequestDirectoryReconcile_WhenTwoFilesShareSameId_KeepsBothFilesAndSelectsLatestAsCurrent()
     {
-        await using var ctx = await ReconcilerTestContext.CreateAsync();
-        var aPath = await ctx.WriteRecordAsync("a.json", new("shared-id", 1, "one"));
-        var bPath = await ctx.WriteRecordAsync("b.json", new("shared-id", 1, "two"));
+        await using var harness = await ReconcilerHarness.CreateAsync();
+        var aPath = await harness.WriteRecordAsync("a.json", new("shared-id", 1, "one"));
+        var bPath = await harness.WriteRecordAsync("b.json", new("shared-id", 1, "two"));
         File.SetLastWriteTimeUtc(aPath, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         File.SetLastWriteTimeUtc(bPath, new DateTime(2024, 1, 1, 0, 0, 1, DateTimeKind.Utc));
 
-        ctx.RequestDirectoryReconcile();
-        await ctx.RetryScheduler.RunAllAsync();
-        AssertNoRetry(ctx);
+        harness.RequestDirectoryReconcile();
+        await harness.RetryScheduler.RunAllAsync(TestContext.Current.CancellationToken);
+        AssertNoRetry(harness);
 
-        using var scope = await ctx.Index.EnterSharedScopeAsync();
+        using var scope = await harness.Index.EnterSharedScopeAsync(TestContext.Current.CancellationToken);
         var record = Assert.Single(scope.Records).Value;
         Assert.Equal("shared-id", record.Id);
         Assert.Equal(2, record.Files.Count);
@@ -106,5 +106,5 @@ public class DirectoryReconcilerTests
         Assert.Equal("two", record.GetCurrentFileState().Projection);
     }
 
-    private static void AssertNoRetry(ReconcilerTestContext ctx) => Assert.Equal(0, ctx.RetryScheduler.PendingCount);
+    private static void AssertNoRetry(ReconcilerHarness harness) => Assert.Equal(0, harness.RetryScheduler.PendingCount);
 }

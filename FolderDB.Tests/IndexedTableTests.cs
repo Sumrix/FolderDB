@@ -13,10 +13,10 @@ public sealed class IndexedTableTests
 
         try
         {
-            await using var db = await FolderDatabase.OpenAsync(rootPath, [CreateTableDefinition()]);
+            await using var db = await FolderDatabase.OpenAsync(rootPath, [CreateTableDefinition()], cancellationToken: TestContext.Current.CancellationToken);
             var table = db.IndexedTable<string, PlainTestRecord, NoProjection>();
 
-            await table.TryUpsertAsync(new PlainTestRecord("id-1", "value-1"));
+            await table.TryUpsertAsync(new PlainTestRecord("id-1", "value-1"), TestContext.Current.CancellationToken);
 
             var file = Assert.Single(table.Files).Value;
             Assert.Null(file.ErrorInfo);
