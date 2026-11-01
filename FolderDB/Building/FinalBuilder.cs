@@ -8,19 +8,19 @@ public sealed class FinalBuilder<TKey, TRecord, TProjection>
     where TKey : notnull
 {
     private readonly IndexStep<TKey, TRecord, TProjection> _step;
-    private readonly TableOptions<TKey, TRecord> _options;
+    private readonly CollectionOptions<TKey, TRecord> _options;
 
     internal FinalBuilder(
         IndexStep<TKey, TRecord, TProjection> step,
-        TableOptions<TKey, TRecord> options)
+        CollectionOptions<TKey, TRecord> options)
     {
         _step = step;
         _options = options;
     }
 
-    public TableDefinition<TKey, TRecord, TProjection> Build()
+    public CollectionDefinition<TKey, TRecord, TProjection> Build()
     {
-        return new TableDefinition<TKey, TRecord, TProjection>
+        return new CollectionDefinition<TKey, TRecord, TProjection>
         {
             Name = _options.Name ?? typeof(TRecord).Name,
             KeyComparer = _options.KeyComparer ?? Comparer<TKey>.Default,

@@ -18,7 +18,7 @@ namespace FolderDB.Tests;
 
 public class DatabaseOperationProcessorTests
 {
-    private static readonly TableDefinition<string, TestRecord, string> _definition = TableDefinitionBuilder
+    private static readonly CollectionDefinition<string, TestRecord, string> _definition = CollectionDefinitionBuilder
         .Create<string, TestRecord>()
         .WithRecordSchema(builder => builder
             .StartWith(1, TestsJsonContext.Default.TestRecord))
@@ -46,7 +46,7 @@ public class DatabaseOperationProcessorTests
         await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
         var fileName = await harness.GetCurrentFileNameAsync("id-1");
-        await File.WriteAllTextAsync(Path.Combine(harness.TablePath, fileName), "{ invalid json", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(harness.CollectionPath, fileName), "{ invalid json", TestContext.Current.CancellationToken);
 
         var result = await harness.Processor.TryGetAsync("id-1", TestContext.Current.CancellationToken);
 
@@ -64,7 +64,7 @@ public class DatabaseOperationProcessorTests
         await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
         var fileName = await harness.GetCurrentFileNameAsync("id-1");
-        await File.WriteAllTextAsync(Path.Combine(harness.TablePath, fileName), "{ invalid json", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(harness.CollectionPath, fileName), "{ invalid json", TestContext.Current.CancellationToken);
 
         var exception = await Assert.ThrowsAsync<FileOperationException>(() => harness.Processor.GetAsync("id-1", TestContext.Current.CancellationToken));
 
@@ -88,7 +88,7 @@ public class DatabaseOperationProcessorTests
         Assert.Null(result.Record);
         Assert.Equal(fileName, result.FileName);
         Assert.NotNull(result.Error?.Exception);
-        Assert.Equal([(Path.Combine(harness.TablePath, fileName), false)], harness.ReconcileRequests);
+        Assert.Equal([(Path.Combine(harness.CollectionPath, fileName), false)], harness.ReconcileRequests);
         await harness.AssertHasSingleErrorInfoFileAsync("id-1", FileErrorReason.Unavailable);
     }
 
@@ -116,7 +116,7 @@ public class DatabaseOperationProcessorTests
         await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
         var fileName = await harness.GetCurrentFileNameAsync("id-1");
-        File.Delete(Path.Combine(harness.TablePath, fileName));
+        File.Delete(Path.Combine(harness.CollectionPath, fileName));
 
         var result = await harness.Processor.TryGetAsync("id-1", TestContext.Current.CancellationToken);
 
@@ -134,7 +134,7 @@ public class DatabaseOperationProcessorTests
         await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
         var fileName = await harness.GetCurrentFileNameAsync("id-1");
-        var filePath = Path.Combine(harness.TablePath, fileName);
+        var filePath = Path.Combine(harness.CollectionPath, fileName);
         await File.WriteAllTextAsync(filePath, "{ invalid json", TestContext.Current.CancellationToken);
         var getResult = await harness.Processor.TryGetAsync("id-1", TestContext.Current.CancellationToken);
         Assert.Equal(FileErrorReason.Invalid, getResult.ErrorReason);
@@ -153,7 +153,7 @@ public class DatabaseOperationProcessorTests
         await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
         var fileName = await harness.GetCurrentFileNameAsync("id-1");
-        var filePath = Path.Combine(harness.TablePath, fileName);
+        var filePath = Path.Combine(harness.CollectionPath, fileName);
         await File.WriteAllTextAsync(filePath, "{ invalid json", TestContext.Current.CancellationToken);
         var invalidResult = await harness.Processor.TryGetAsync("id-1", TestContext.Current.CancellationToken);
         Assert.Equal(FileErrorReason.Invalid, invalidResult.ErrorReason);
@@ -180,7 +180,7 @@ public class DatabaseOperationProcessorTests
         await harness.Processor.UpsertAsync(new TestRecord("id-old", 1, "value"), TestContext.Current.CancellationToken);
 
         var fileName = await harness.GetCurrentFileNameAsync("id-old");
-        var filePath = Path.Combine(harness.TablePath, fileName);
+        var filePath = Path.Combine(harness.CollectionPath, fileName);
         var changedRecord = new TestRecord("id-new", 1, "value-2");
         await File.WriteAllTextAsync(filePath, JsonSerializer.Serialize(changedRecord, TestsJsonContext.Default.TestRecord), TestContext.Current.CancellationToken);
 
@@ -225,7 +225,7 @@ public class DatabaseOperationProcessorTests
     [Fact]
     public async Task TryUpsertAsync_WhenLazyFileNameGeneratorFails_ThrowsFileNameGenerationException()
     {
-        var definition = TableDefinitionBuilder
+        var definition = CollectionDefinitionBuilder
             .Create<string, TestRecord>()
             .WithFileNaming(ThrowingFileNames)
             .WithRecordSchema(builder => builder
@@ -269,16 +269,16 @@ public class DatabaseOperationProcessorTests
     }
 
     [Fact]
-    public async Task UpsertAsync_WhenTableDirectoryWasDeleted_RecreatesDirectoryAndWritesRecord()
+    public async Task UpsertAsync_WhenCollectionDirectoryWasDeleted_RecreatesDirectoryAndWritesRecord()
     {
         await using var harness = await Harness.CreateAsync();
-        Directory.Delete(harness.TablePath, recursive: true);
+        Directory.Delete(harness.CollectionPath, recursive: true);
 
         await harness.Processor.UpsertAsync(new TestRecord("id-1", 1, "value"), TestContext.Current.CancellationToken);
 
-        Assert.True(Directory.Exists(harness.TablePath));
+        Assert.True(Directory.Exists(harness.CollectionPath));
         var fileName = await harness.GetCurrentFileNameAsync("id-1");
-        Assert.True(File.Exists(Path.Combine(harness.TablePath, fileName)));
+        Assert.True(File.Exists(Path.Combine(harness.CollectionPath, fileName)));
         await harness.AssertHasSingleRecordAsync("id-1");
     }
 
@@ -290,7 +290,7 @@ public class DatabaseOperationProcessorTests
 
         var primaryFileName = await harness.GetCurrentFileNameAsync("id-1");
         var extraFileName = "id-1-extra.json";
-        var extraPath = Path.Combine(harness.TablePath, extraFileName);
+        var extraPath = Path.Combine(harness.CollectionPath, extraFileName);
         await File.WriteAllTextAsync(
             extraPath,
             JsonSerializer.Serialize(new TestRecord("id-1", 1, "extra"), TestsJsonContext.Default.TestRecord), TestContext.Current.CancellationToken);
@@ -305,7 +305,7 @@ public class DatabaseOperationProcessorTests
 
         await harness.Processor.DeleteAsync("id-1", TestContext.Current.CancellationToken);
 
-        Assert.False(File.Exists(Path.Combine(harness.TablePath, primaryFileName)));
+        Assert.False(File.Exists(Path.Combine(harness.CollectionPath, primaryFileName)));
         Assert.False(File.Exists(extraPath));
         await harness.AssertIndexEmptyAsync();
     }
@@ -355,37 +355,37 @@ public class DatabaseOperationProcessorTests
     {
         private readonly string _rootPath;
 
-        public string TablePath { get; }
-        public TableIndex<string, TestRecord, string> Index { get; }
+        public string CollectionPath { get; }
+        public CollectionIndex<string, TestRecord, string> Index { get; }
         public DelegatingFileStore FileStore { get; }
         public DatabaseOperationProcessor<string, TestRecord, string> Processor { get; }
         public List<(string Path, bool MinBackoff)> ReconcileRequests { get; }
 
         private Harness(
             string rootPath,
-            string tablePath,
-            TableIndex<string, TestRecord, string> index,
+            string collectionPath,
+            CollectionIndex<string, TestRecord, string> index,
             DelegatingFileStore fileStore,
             DatabaseOperationProcessor<string, TestRecord, string> processor,
             List<(string Path, bool MinBackoff)> reconcileRequests)
         {
             _rootPath = rootPath;
-            TablePath = tablePath;
+            CollectionPath = collectionPath;
             Index = index;
             FileStore = fileStore;
             Processor = processor;
             ReconcileRequests = reconcileRequests;
         }
 
-        public static async Task<Harness> CreateAsync(TableDefinition<string, TestRecord, string>? definition = null)
+        public static async Task<Harness> CreateAsync(CollectionDefinition<string, TestRecord, string>? definition = null)
         {
             definition ??= _definition;
             var rootPath = Directory.CreateTempSubdirectory().FullName;
-            var tablePath = Path.Combine(rootPath, "table");
+            var collectionPath = Path.Combine(rootPath, "collection");
             var indexPath = Path.Combine(rootPath, "index-state.json");
-            Directory.CreateDirectory(tablePath);
+            Directory.CreateDirectory(collectionPath);
             var recordCodec = definition.RecordCodecFactory(new RecordCodecContext(NullLoggerFactory.Instance));
-            var context = new TableContext<string, TestRecord, string>
+            var context = new CollectionContext<string, TestRecord, string>
             {
                 Name = definition.Name,
                 KeyComparer = definition.KeyComparer,
@@ -395,14 +395,14 @@ public class DatabaseOperationProcessorTests
                 RecordCodec = recordCodec,
             };
             var persistence = definition.IndexPersistenceFactory!(
-                new TableIndexPersistenceContext<string, TestRecord, string>(context, NullLoggerFactory.Instance));
+                new CollectionIndexPersistenceContext<string, TestRecord, string>(context, NullLoggerFactory.Instance));
 
             var indexEngine = await RecordScopedIndexEngine<string, TestRecord, string>.StartAsync(
                 indexPath,
                 context,
                 persistence,
                 autoSaveEnabled: false);
-            var index = new TableIndex<string, TestRecord, string>(indexEngine, context);
+            var index = new CollectionIndex<string, TestRecord, string>(indexEngine, context);
 
             var fileStore = new DelegatingFileStore(new FileStore());
             var reconcileRequests = new List<(string Path, bool MinBackoff)>();
@@ -424,7 +424,7 @@ public class DatabaseOperationProcessorTests
                 index,
                 NullLogger<FileReconciler<string, TestRecord, string>>.Instance);
             var processor = new DatabaseOperationProcessor<string, TestRecord, string>(
-                tablePath,
+                collectionPath,
                 context,
                 index,
                 store,
@@ -433,7 +433,7 @@ public class DatabaseOperationProcessorTests
                 (path, minBackoff) => reconcileRequests.Add((path, minBackoff)),
                 logger: null);
 
-            return new Harness(rootPath, tablePath, index, fileStore, processor, reconcileRequests);
+            return new Harness(rootPath, collectionPath, index, fileStore, processor, reconcileRequests);
         }
 
         public async Task<string> GetCurrentFileNameAsync(string id)

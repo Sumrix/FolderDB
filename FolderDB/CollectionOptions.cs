@@ -5,19 +5,19 @@ using System.IO;
 namespace FolderDB;
 
 /// <summary>
-/// Provides options to be used with <see cref="TableDefinitionBuilder"/>.
+/// Provides options to be used with <see cref="CollectionDefinitionBuilder"/>.
 /// </summary>
 /// <typeparam name="TKey">The type of the record id.</typeparam>
-/// <typeparam name="TRecord">The record type stored in the table.</typeparam>
-public class TableOptions<TKey, TRecord>
+/// <typeparam name="TRecord">The record type stored in the collection.</typeparam>
+public class CollectionOptions<TKey, TRecord>
 {
     private string? _name;
 
     /// <summary>
-    /// Gets or sets the name of the table, which is also the name of the directory that holds it.
+    /// Gets or sets the name of the collection, which is also the name of the directory that holds it.
     /// </summary>
     /// <returns>
-    /// The name of the table. The default is <see langword="null"/>, which indicates that the name
+    /// The name of the collection. The default is <see langword="null"/>, which indicates that the name
     /// of <typeparamref name="TRecord"/> is used.
     /// </returns>
     /// <remarks>
@@ -66,7 +66,7 @@ public class TableOptions<TKey, TRecord>
     /// </returns>
     /// <remarks>
     /// <para>
-    /// A candidate is a file name without an extension, which the table appends. It must not be
+    /// A candidate is a file name without an extension, which the collection appends. It must not be
     /// <see langword="null"/>, empty, or consist only of white-space characters, must not be too
     /// long for a file name, and must not contain any of the characters returned by
     /// <see cref="Path.GetInvalidFileNameChars"/>.

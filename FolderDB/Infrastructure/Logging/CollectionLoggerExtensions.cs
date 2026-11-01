@@ -4,18 +4,18 @@ using Microsoft.Extensions.Logging;
 
 namespace FolderDB.Infrastructure.Logging;
 
-internal static class TableLoggerExtensions
+internal static class CollectionLoggerExtensions
 {
-    public static ILogger CreateTableScopedLogger(this ILogger logger, string tableName)
+    public static ILogger CreateCollectionScopedLogger(this ILogger logger, string collectionName)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        return new TableLogger(logger, tableName);
+        return new CollectionLogger(logger, collectionName);
     }
 
-    public static ILogger<T> CreateTableScopedLogger<T>(this ILogger<T> logger, string tableName)
+    public static ILogger<T> CreateCollectionScopedLogger<T>(this ILogger<T> logger, string collectionName)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        return new TableLogger<T>(logger, tableName);
+        return new CollectionLogger<T>(logger, collectionName);
     }
 
     public static IDisposable? BeginMethodScope(this ILogger logger, [CallerMemberName] string method = "")

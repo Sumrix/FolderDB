@@ -5,43 +5,43 @@ using FolderDB.Building;
 
 namespace FolderDB;
 
-public static class TableDefinitionBuilder
+public static class CollectionDefinitionBuilder
 {
     public static RecordCodecBuilder<TKey, TRecord> Create<TKey, TRecord>()
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
         return new RecordCodecBuilder<TKey, TRecord>(
-            new TableOptions<TKey, TRecord>());
+            new CollectionOptions<TKey, TRecord>());
     }
 
     [RequiresUnreferencedCode("Uses reflection-based resolver via populateMissingResolver.")]
     [RequiresDynamicCode("May require runtime code generation for reflection-based serialization.")]
-    public static TableDefinition<TKey, TRecord, NoProjection> CreateDefault<TKey, TRecord>(
+    public static CollectionDefinition<TKey, TRecord, NoProjection> CreateDefault<TKey, TRecord>(
         JsonSerializerOptions? jsonOptions = null,
-        TableOptions<TKey, TRecord>? tableOptions = null)
+        CollectionOptions<TKey, TRecord>? collectionOptions = null)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
         return CreateDefault<TKey, TRecord, NoProjection>(
             static _ => default,
             jsonOptions,
-            tableOptions);
+            collectionOptions);
     }
 
     [RequiresUnreferencedCode("Uses reflection-based resolver via populateMissingResolver.")]
     [RequiresDynamicCode("May require runtime code generation for reflection-based serialization.")]
-    public static TableDefinition<TKey, TRecord, TProjection> CreateDefault<TKey, TRecord, TProjection>(
+    public static CollectionDefinition<TKey, TRecord, TProjection> CreateDefault<TKey, TRecord, TProjection>(
         Func<TRecord, TProjection> createProjection,
         JsonSerializerOptions? jsonOptions = null,
-        TableOptions<TKey, TRecord>? tableOptions = null)
+        CollectionOptions<TKey, TRecord>? collectionOptions = null)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
         ArgumentNullException.ThrowIfNull(createProjection);
 
-        tableOptions ??= new TableOptions<TKey, TRecord>();
-        return new RecordCodecBuilder<TKey, TRecord>(tableOptions)
+        collectionOptions ??= new CollectionOptions<TKey, TRecord>();
+        return new RecordCodecBuilder<TKey, TRecord>(collectionOptions)
             .UseJsonRecordCodec(jsonOptions)
             .WithProjection(createProjection)
             .UseJsonIndexPersistence(jsonOptions)

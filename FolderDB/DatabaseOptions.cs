@@ -28,7 +28,7 @@ public sealed class DatabaseOptions
     /// <returns>The maximum number of file names. The default is 5.</returns>
     /// <remarks>
     /// Each attempt takes the next candidate name from
-    /// <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/>.
+    /// <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/>.
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">The value is less than 1.</exception>
     public int MaxFileNameReserveAttempts
@@ -42,7 +42,7 @@ public sealed class DatabaseOptions
     }
 
     /// <summary>
-    /// Gets or sets the time a change to a table's in-memory index waits before the index file is written.
+    /// Gets or sets the time a change to a collection's in-memory index waits before the index file is written.
     /// </summary>
     /// <returns>The time a change waits before it is written. The default is 10 seconds.</returns>
     /// <remarks>

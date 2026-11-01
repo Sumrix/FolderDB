@@ -10,7 +10,7 @@ namespace FolderDB.Encoding;
 /// Defines a mechanism for converting between records and their stored representation.
 /// </summary>
 /// <typeparam name="TKey">The type of the record id.</typeparam>
-/// <typeparam name="TRecord">The record type stored in the table.</typeparam>
+/// <typeparam name="TRecord">The record type stored in the collection.</typeparam>
 public interface IRecordCodec<TKey, TRecord>
 {
     int? CurrentSchemaVersion { get; }

@@ -4,7 +4,7 @@ using FolderDB.Encoding;
 
 namespace FolderDB.Runtime;
 
-public sealed class TableContext<TKey, TRecord, TProjection>
+public sealed class CollectionContext<TKey, TRecord, TProjection>
 {
     public required string Name { get; init; }
     public required IComparer<TKey> KeyComparer { get; init; }

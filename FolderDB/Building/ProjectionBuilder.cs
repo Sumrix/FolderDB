@@ -3,7 +3,7 @@ using System;
 namespace FolderDB.Building;
 
 public sealed class ProjectionBuilder<TKey, TRecord>
-    : TableOptionsBuilder<TKey, TRecord, ProjectionBuilder<TKey, TRecord>>
+    : CollectionOptionsBuilder<TKey, TRecord, ProjectionBuilder<TKey, TRecord>>
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
 {
@@ -12,7 +12,7 @@ public sealed class ProjectionBuilder<TKey, TRecord>
 
     internal ProjectionBuilder(
         RecordCodecStep<TKey, TRecord> step,
-        TableOptions<TKey, TRecord> options)
+        CollectionOptions<TKey, TRecord> options)
         : base(options)
     {
         _step = step;

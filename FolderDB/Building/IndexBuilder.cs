@@ -8,16 +8,16 @@ using Microsoft.Extensions.Logging;
 namespace FolderDB.Building;
 
 public abstract class IndexBuilder<TKey, TRecord, TProjection, TBuilder>
-    : TableOptionsBuilder<TKey, TRecord, TBuilder>
+    : CollectionOptionsBuilder<TKey, TRecord, TBuilder>
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
-    where TBuilder : TableOptionsBuilder<TKey, TRecord, TBuilder>
+    where TBuilder : CollectionOptionsBuilder<TKey, TRecord, TBuilder>
 {
     private readonly ProjectionStep<TKey, TRecord, TProjection> _step;
 
     internal IndexBuilder(
         ProjectionStep<TKey, TRecord, TProjection> step,
-        TableOptions<TKey, TRecord> options)
+        CollectionOptions<TKey, TRecord> options)
         : base(options)
     {
         _step = step;
@@ -47,14 +47,14 @@ public abstract class IndexBuilder<TKey, TRecord, TProjection, TBuilder>
     }
 
     public FinalBuilder<TKey, TRecord, TProjection> UseIndexPersistence(
-        ITableIndexPersistence<TKey, TProjection> indexPersistence)
+        ICollectionIndexPersistence<TKey, TProjection> indexPersistence)
     {
         ArgumentNullException.ThrowIfNull(indexPersistence);
         return UseIndexPersistence(_ => indexPersistence);
     }
 
     public FinalBuilder<TKey, TRecord, TProjection> UseIndexPersistence(
-        Func<TableIndexPersistenceContext<TKey, TRecord, TProjection>, ITableIndexPersistence<TKey, TProjection>> indexPersistenceFactory)
+        Func<CollectionIndexPersistenceContext<TKey, TRecord, TProjection>, ICollectionIndexPersistence<TKey, TProjection>> indexPersistenceFactory)
     {
         ArgumentNullException.ThrowIfNull(indexPersistenceFactory);
         return new FinalBuilder<TKey, TRecord, TProjection>(
@@ -69,10 +69,10 @@ public abstract class IndexBuilder<TKey, TRecord, TProjection, TBuilder>
         ArgumentNullException.ThrowIfNull(keyTypeInfo);
         ArgumentNullException.ThrowIfNull(projectionTypeInfo);
 
-        return UseIndexPersistence(ctx => new JsonTableIndexPersistence<TKey, TProjection>(
+        return UseIndexPersistence(ctx => new JsonCollectionIndexPersistence<TKey, TProjection>(
             keyTypeInfo,
             projectionTypeInfo,
-            ctx.Table.KeyEqualityComparer,
-            ctx.LoggerFactory.CreateLogger<JsonTableIndexPersistence<TKey, TProjection>>()));
+            ctx.Collection.KeyEqualityComparer,
+            ctx.LoggerFactory.CreateLogger<JsonCollectionIndexPersistence<TKey, TProjection>>()));
     }
 }

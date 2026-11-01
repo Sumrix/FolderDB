@@ -11,7 +11,7 @@ namespace FolderDB.Indexing.Scopes;
 
 public class SharedIndexScope<TKey, TRecord, TProjection>(
     IRecordScopedIndexEngine<TKey, TRecord, TProjection> engine,
-    TableContext<TKey, TRecord, TProjection> context,
+    CollectionContext<TKey, TRecord, TProjection> context,
     IDisposable readerLock) : IDisposable
     where TKey : notnull
 {

@@ -6,13 +6,13 @@ using FolderDB.Infrastructure.Helpers;
 
 namespace FolderDB.Runtime;
 
-public class FolderIndexedTable<TKey, TRecord, TProjection> :
-    IFolderIndexedTable<TKey, TRecord, TProjection>
+public class FolderIndexedRecordCollection<TKey, TRecord, TProjection> :
+    IFolderIndexedRecordCollection<TKey, TRecord, TProjection>
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
 {
     private readonly DatabaseResources _resources;
-    private readonly TableEngine<TKey, TRecord, TProjection> _engine;
+    private readonly CollectionEngine<TKey, TRecord, TProjection> _engine;
 
     private int _disposed;
 
@@ -36,10 +36,10 @@ public class FolderIndexedTable<TKey, TRecord, TProjection> :
         }
     }
 
-    internal FolderIndexedTable(
+    internal FolderIndexedRecordCollection(
         string rootPath,
         DatabaseResources resources,
-        TableEngine<TKey, TRecord, TProjection> engine)
+        CollectionEngine<TKey, TRecord, TProjection> engine)
     {
         RootPath = rootPath;
         _resources = resources;

@@ -18,10 +18,10 @@ using Microsoft.Extensions.Logging;
 namespace FolderDB.Indexing.Reconciliation;
 
 internal class FileReconciler<TKey, TRecord, TProjection>(
-    TableContext<TKey, TRecord, TProjection> context,
+    CollectionContext<TKey, TRecord, TProjection> context,
     IFileStore fileStore,
     RecordStore<TKey, TRecord> recordStore,
-    TableIndex<TKey, TRecord, TProjection> index,
+    CollectionIndex<TKey, TRecord, TProjection> index,
     ILogger<FileReconciler<TKey, TRecord, TProjection>> logger)
     where TKey : notnull
     where TRecord : class, IRecord<TKey>

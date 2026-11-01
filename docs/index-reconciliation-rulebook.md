@@ -83,9 +83,9 @@ The file update algorithm produces one of these decisions:
 
 The index determines what records the database exposes to its users. A wrong decision can hide a valid record, retain a deleted record, attach a file to the wrong id, or replace useful state with an error. User data is the most important part of the database, so the decision process must explicitly cover every relevant situation.
 
-The direct approach would be one truth table with every combination of every input. With `N` independent binary inputs, that table has `2^N` rows and `N` input columns. For the eight modeled inputs in this rulebook, that starts with `2^8 = 256` rows. Such a table is difficult to review and mostly consists of duplicate or impossible situations. For example, the relation between file and indexed ids is unavailable when either side has no id.
+The direct approach would be one truth collection with every combination of every input. With `N` independent binary inputs, that collection has `2^N` rows and `N` input columns. For the eight modeled inputs in this rulebook, that starts with `2^8 = 256` rows. Such a collection is difficult to review and mostly consists of duplicate or impossible situations. For example, the relation between file and indexed ids is unavailable when either side has no id.
 
-Instead, the rulebook uses a series of connected tables. Each table fixes some inputs, disables inputs that are no longer meaningful, and delegates the remaining cases to a smaller table. These tables form a decision tree. The tree is shorter than the full truth table while still making the complete reachable decision space reviewable.
+Instead, the rulebook uses a series of connected collections. Each collection fixes some inputs, disables inputs that are no longer meaningful, and delegates the remaining cases to a smaller collection. These collections form a decision tree. The tree is shorter than the full truth collection while still making the complete reachable decision space reviewable.
 
 ### The Read Boundary
 
@@ -166,7 +166,7 @@ with required id locks:
     ExecuteDecisions(decisions)
 ```
 
-## Chapter 2. Decision Tables
+## Chapter 2. Decision Collections
 
 This chapter derives the complete reconciliation decision tree. It formalizes which inputs are available in each situation, removes impossible combinations, and maps every reachable combination to a decision.
 
@@ -196,10 +196,10 @@ Notation:
 - `0` = false.
 - `1` = true.
 - `{}` = empty set.
-- `Disabled` = decision inputs unavailable to the current table.
+- `Disabled` = decision inputs unavailable to the current collection.
 - `Disables` = decision inputs made unavailable by the current row values.
 - `Available` = decision inputs available to the current row.
-- In table rows, `Available` is calculated after applying `Disables`.
+- In collection rows, `Available` is calculated after applying `Disables`.
 
 Formula:
 
@@ -223,7 +223,7 @@ The executable reconciliation algorithm starts with the pre-read decision. It ma
 
 Before `ReadFile`, the algorithm can only observe file presence and fingerprint through `GetFingerprint`, and indexed state through `GetState`. The observed file kind, observed file id, and observed on-disk schema version are not available yet, so `EF`, `RI`, and `RS` are disabled. Because `RE` compares observed and indexed errors, it is unavailable without the observed file error.
 
-#### Table 1.1. Presence
+#### Collection 1.1. Presence
 
 ```text
 Fixed = {}
@@ -234,11 +234,11 @@ Available = {PF, PS, ES, RF}
 | PF | PS | Disables | Available | Decision | Reason |
 | --- | --- | --- | --- | --- | --- |
 | 0 | 0 | `{ES, RF}` | `{}` | `Skip` | The file and indexed state are absent before read: current. |
-| 0 | 1 | `{RF}` | `{ES}` | [Table 1.2](#table-12-missing-file) | |
+| 0 | 1 | `{RF}` | `{ES}` | [Collection 1.2](#collection-12-missing-file) | |
 | 1 | 0 | `{ES, RF}` | `{}` | `ReadFile`, then [Post-Read Decision](#post-read-decision) | The file is new to the index and must be read before it can be indexed. |
-| 1 | 1 | `{}` | `{ES, RF}` | [Table 1.3](#table-13-existing-file) | |
+| 1 | 1 | `{}` | `{ES, RF}` | [Collection 1.3](#collection-13-existing-file) | |
 
-#### Table 1.2. Missing File
+#### Collection 1.2. Missing File
 
 ```text
 Fixed = {PF=0, PS=1}
@@ -253,7 +253,7 @@ Available = {ES}
 
 The file is absent on disk, so its indexed state must be deleted.
 
-#### Table 1.3. Existing File
+#### Collection 1.3. Existing File
 
 ```text
 Fixed = {PF=1, PS=1}
@@ -283,11 +283,11 @@ GetState       -> PS, ES, indexed state
 
 ### Post-Read Decision
 
-The post-read decision starts when the pre-read decision returns `ReadFile`. It reads the file, builds post-read inputs, and delegates to the complete reconciliation tables below.
+The post-read decision starts when the pre-read decision returns `ReadFile`. It reads the file, builds post-read inputs, and delegates to the complete reconciliation collections below.
 
 Because `ReadFile` produces a new `{PresentFile, Fingerprint, SchemaVersion?}` observation, the post-read values of `PF` and `RF` are different observations from the values used in the pre-read decision.
 
-#### Table 2.1. Presence
+#### Collection 2.1. Presence
 
 ```text
 Fixed = {}
@@ -298,11 +298,11 @@ Available = {PF, PS, EF, ES, RI, RF, RS, RE}
 | PF | PS | Disables | Available | Decision | Reason |
 | --- | --- | --- | --- | --- | --- |
 | 0 | 0 | `{EF, ES, RI, RF, RS, RE}` | `{}` | `Skip` | The file and indexed state are absent: current. |
-| 0 | 1 | `{EF, RI, RF, RS, RE}` | `{ES}` | [Table 2.2](#table-22-missing-file) | |
-| 1 | 0 | `{ES, RI, RF, RS, RE}` | `{EF}` | [Table 2.3](#table-23-new-file) | |
-| 1 | 1 | `{}` | `{EF, ES, RI, RF, RS, RE}` | [Table 2.4](#table-24-content-kind) | |
+| 0 | 1 | `{EF, RI, RF, RS, RE}` | `{ES}` | [Collection 2.2](#collection-22-missing-file) | |
+| 1 | 0 | `{ES, RI, RF, RS, RE}` | `{EF}` | [Collection 2.3](#collection-23-new-file) | |
+| 1 | 1 | `{}` | `{EF, ES, RI, RF, RS, RE}` | [Collection 2.4](#collection-24-content-kind) | |
 
-#### Table 2.2. Missing File
+#### Collection 2.2. Missing File
 
 ```text
 Fixed = {PF=0, PS=1}
@@ -317,7 +317,7 @@ Available = {ES}
 
 The file is absent on disk, so its indexed state must be deleted.
 
-#### Table 2.3. New File
+#### Collection 2.3. New File
 
 ```text
 Fixed = {PF=1, PS=0}
@@ -330,7 +330,7 @@ Available = {EF}
 | 0 | `{}` | `{}` | `UpsertRecord` | The file is readable and absent from the index: add it. |
 | 1 | `{}` | `{}` | `Skip` | The file id is unknown, so no `RecordIndexState`, id lock, or `id <-> path` relation can be established. Keep the path as disk state only; a later successful read can add it to the index. |
 
-#### Table 2.4. Content Kind
+#### Collection 2.4. Content Kind
 
 ```text
 Fixed = {PF=1, PS=1}
@@ -340,12 +340,12 @@ Available = {EF, ES, RI, RF, RS, RE}
 
 | EF | ES | Disables | Available | Decision | Reason |
 | --- | --- | --- | --- | --- | --- |
-| 0 | 0 | `{RE}` | `{RI, RF, RS}` | [Table 2.5](#table-25-record-state-comparison) | |
+| 0 | 0 | `{RE}` | `{RI, RF, RS}` | [Collection 2.5](#collection-25-record-state-comparison) | |
 | 1 | 0 | `{RI, RS, RE}` | `{RF}` | `UpsertError` | The indexed record state differs from the file: reconcile it as error state. |
-| 0 | 1 | `{RE}` | `{RI, RF, RS}` | [Table 2.6](#table-26-record-recovery-from-error) | |
-| 1 | 1 | `{RI, RS}` | `{RF, RE}` | [Table 2.7](#table-27-error-comparison) | |
+| 0 | 1 | `{RE}` | `{RI, RF, RS}` | [Collection 2.6](#collection-26-record-recovery-from-error) | |
+| 1 | 1 | `{RI, RS}` | `{RF, RE}` | [Collection 2.7](#collection-27-error-comparison) | |
 
-#### Table 2.5. Record State Comparison
+#### Collection 2.5. Record State Comparison
 
 ```text
 Fixed = {PF=1, PS=1, EF=0, ES=0}
@@ -364,7 +364,7 @@ Available = {RI, RF, RS}
 | different | different | same | `{}` | `{}` | `Delete`, then `UpsertRecord` | The indexed id must be actual. |
 | different | different | different | `{}` | `{}` | `Delete`, then `UpsertRecord` | The indexed id must be actual. |
 
-#### Table 2.6. Record Recovery From Error
+#### Collection 2.6. Record Recovery From Error
 
 ```text
 Fixed = {PF=1, PS=1, EF=0, ES=1}
@@ -385,7 +385,7 @@ Available = {RI, RF, RS}
 
 The indexed error state can be recovered.
 
-#### Table 2.7. Error Comparison
+#### Collection 2.7. Error Comparison
 
 ```text
 Fixed = {PF=1, PS=1, EF=1, ES=1}
@@ -466,7 +466,7 @@ The retry decision does not depend on which reconciliation decision was selected
 | --- | --- |
 | `EF=0` | `{TE}` |
 
-#### Table 3.1. Retry Conditions
+#### Collection 3.1. Retry Conditions
 
 ```text
 Fixed = {}
@@ -478,10 +478,10 @@ Available = {EF, TE, IM}
 | --- | --- | --- | --- | --- | --- |
 | 0 | 0 | `{TE}` | `{}` | `Complete` | No retry condition was observed. |
 | 0 | 1 | `{TE}` | `{}` | `RetryWithMinBackoff` | The decision cannot execute under the held locks, but the required ids are now known. Retry with the minimum delay to acquire the correct locks. |
-| 1 | 0 | `{}` | `{TE}` | [Table 3.2](#table-32-read-error-persistence) | |
-| 1 | 1 | `{}` | `{TE}` | [Table 3.3](#table-33-id-lock-mismatch-precedence) | |
+| 1 | 0 | `{}` | `{TE}` | [Collection 3.2](#collection-32-read-error-persistence) | |
+| 1 | 1 | `{}` | `{TE}` | [Collection 3.3](#collection-33-id-lock-mismatch-precedence) | |
 
-#### Table 3.2. Read Error Persistence
+#### Collection 3.2. Read Error Persistence
 
 ```text
 Fixed = {EF=1, IM=0}
@@ -495,7 +495,7 @@ Available = {TE}
 | 1 | `{}` | `{}` | `RetryWithBackoff` | A transient error may disappear, so retry while continuing the backoff progression. |
 
 
-#### Table 3.3. Id Lock Mismatch Precedence
+#### Collection 3.3. Id Lock Mismatch Precedence
 
 ```text
 Fixed = {EF=1, IM=1}
@@ -527,7 +527,7 @@ This chapter uses `SchemaVersion`, `CurrentSchemaVersion`, `CurrentFileName`, an
 
 The file update is part of full reconciliation: it uses an already obtained `ReadResult`, runs under the same id locks, and changes the observed file state, which must then be reflected in the index. A user operation that reads a file on its own does not trigger this update — it may return the converted record without waiting for an additional disk write. The update happens later, in a background reconciliation pass.
 
-`FileUpdateIntent` is determined alongside `IndexDecision` during the Pre-Read and Post-Read Decisions. The final `FileUpdateDecision` is made after the `IndexDecision` from [Chapter 2](#chapter-2-decision-tables) has been applied to the index. This ordering lets the index first establish the up-to-date path-to-id relation and recalculate `CurrentFileName`. Only then can reconciliation reliably determine whether the processed file is the one selected by `CurrentFileName`.
+`FileUpdateIntent` is determined alongside `IndexDecision` during the Pre-Read and Post-Read Decisions. The final `FileUpdateDecision` is made after the `IndexDecision` from [Chapter 2](#chapter-2-decision-collections) has been applied to the index. This ordering lets the index first establish the up-to-date path-to-id relation and recalculate `CurrentFileName`. Only then can reconciliation reliably determine whether the processed file is the one selected by `CurrentFileName`.
 
 ```text
 make Pre-Read IndexDecision and FileUpdateIntent
@@ -542,7 +542,7 @@ make Pre-Read IndexDecision and FileUpdateIntent
 
 ### Inputs
 
-The file update trees use the inputs, availability rules, and observation boundaries from the Pre-Read and Post-Read Decisions in [Chapter 2](#chapter-2-decision-tables). Two new inputs are added to the general set `U`:
+The file update trees use the inputs, availability rules, and observation boundaries from the Pre-Read and Post-Read Decisions in [Chapter 2](#chapter-2-decision-collections). Two new inputs are added to the general set `U`:
 
 | Code | Name | Values | Meaning |
 | --- | --- | --- | --- |
@@ -556,7 +556,7 @@ M = U ∪ {SA, CF}
 
 ### Availability Rules
 
-The availability rules are the rules from [Chapter 2](#chapter-2-decision-tables) together with the following additions.
+The availability rules are the rules from [Chapter 2](#chapter-2-decision-collections) together with the following additions.
 
 During the Pre-Read Decision, `SA` and `CF` come from the indexed state. They describe the observed file only when the index contains a record-like state with the same fingerprint:
 
@@ -580,7 +580,7 @@ Therefore, the pre-read `CF` and the `CF` observed after executing `IndexDecisio
 
 ### Decisions
 
-The file update decision tables used by the Pre-Read and Post-Read Decisions return a `FileUpdateIntent`:
+The file update decision collections used by the Pre-Read and Post-Read Decisions return a `FileUpdateIntent`:
 
 | Intent | Meaning |
 | --- | --- |
@@ -594,7 +594,7 @@ After executing `IndexDecision`, `UpdateIfCurrentFile` is resolved into the fina
 
 The pre-read tree determines whether the file must be read to update its format. If the index reliably shows that the file is dormant, the tree completes without reading it. Whenever it is unknown whether the schema is current or whether the file represents the current record, the tree requires a read.
 
-#### Table 4.1. Presence
+#### Collection 4.1. Presence
 
 ```text
 Fixed = {}
@@ -605,11 +605,11 @@ Available = {PF, PS, ES, RF, SA, CF}
 | PF | PS | Disables | Available | FileUpdateIntent | Reason |
 | --- | --- | --- | --- | --- | --- |
 | 0 | 0 | `{ES, RF, SA, CF}` | `{}` | `DoNothing` | There is no file to update. |
-| 0 | 1 | `{RF, SA, CF}` | `{ES}` | [Table 4.2](#table-42-missing-file) | |
+| 0 | 1 | `{RF, SA, CF}` | `{ES}` | [Collection 4.2](#collection-42-missing-file) | |
 | 1 | 0 | `{ES, RF, SA, CF}` | `{}` | `ReadFile`, then [Post-Read Decision](#post-read-file-update-intent) | The file must be read to determine its id, schema version, and relation to the current record. |
-| 1 | 1 | `{}` | `{ES, RF, SA, CF}` | [Table 4.3](#table-43-existing-file) | |
+| 1 | 1 | `{}` | `{ES, RF, SA, CF}` | [Collection 4.3](#collection-43-existing-file) | |
 
-#### Table 4.2. Missing File
+#### Collection 4.2. Missing File
 
 ```text
 Fixed = {PF=0, PS=1}
@@ -622,7 +622,7 @@ Available = {ES}
 | 0 | `{}` | `{}` | `DoNothing` | There is no file to update. |
 | 1 | `{}` | `{}` | `DoNothing` | There is no file to update. |
 
-#### Table 4.3. Existing File
+#### Collection 4.3. Existing File
 
 ```text
 Fixed = {PF=1, PS=1}
@@ -632,12 +632,12 @@ Available = {ES, RF, SA, CF}
 
 | ES | RF | Disables | Available | FileUpdateIntent | Reason |
 | --- | --- | --- | --- | --- | --- |
-| 0 | same | `{}` | `{SA, CF}` | [Table 4.4](#table-44-actual-indexed-state) | |
+| 0 | same | `{}` | `{SA, CF}` | [Collection 4.4](#collection-44-actual-indexed-state) | |
 | 0 | different | `{SA, CF}` | `{}` | `ReadFile`, then [Post-Read Decision](#post-read-file-update-intent) | The index no longer describes the observed file state. |
 | 1 | same | `{SA, CF}` | `{}` | `ReadFile`, then [Post-Read Decision](#post-read-file-update-intent) | An error state does not confirm the schema version or the observed file's relation to the current record. |
 | 1 | different | `{SA, CF}` | `{}` | `ReadFile`, then [Post-Read Decision](#post-read-file-update-intent) | An error state does not confirm the schema version or the observed file's relation to the current record. |
 
-#### Table 4.4. Actual Indexed State
+#### Collection 4.4. Actual Indexed State
 
 ```text
 Fixed = {PF=1, PS=1, ES=0, RF=same}
@@ -663,7 +663,7 @@ M_post = {PF, EF, SA}
 
 `PS`, `ES`, `RI`, `RF`, `RS`, and `RE` are not inputs to this tree and do not affect `FileUpdateIntent`. `CF` is also unavailable at this stage and will be calculated after executing `IndexDecision`.
 
-#### Table 4.5. Presence
+#### Collection 4.5. Presence
 
 ```text
 Fixed = {}
@@ -674,9 +674,9 @@ Available = {PF, EF, SA}
 | PF | Disables | Available | FileUpdateIntent | Reason |
 | --- | --- | --- | --- | --- |
 | 0 | `{EF, SA}` | `{}` | `DoNothing` | There is no file to update. |
-| 1 | `{}` | `{EF, SA}` | [Table 4.6](#table-46-content-kind) | |
+| 1 | `{}` | `{EF, SA}` | [Collection 4.6](#collection-46-content-kind) | |
 
-#### Table 4.6. Content Kind
+#### Collection 4.6. Content Kind
 
 ```text
 Fixed = {PF=1}
@@ -686,10 +686,10 @@ Available = {EF, SA}
 
 | EF | Disables | Available | FileUpdateIntent | Reason |
 | --- | --- | --- | --- | --- |
-| 0 | `{}` | `{SA}` | [Table 4.7](#table-47-schema-actual) | |
+| 0 | `{}` | `{SA}` | [Collection 4.7](#collection-47-schema-actual) | |
 | 1 | `{SA}` | `{}` | `DoNothing` | Without a decoded record, the file cannot be written in the current format. |
 
-#### Table 4.7. Schema Actual
+#### Collection 4.7. Schema Actual
 
 ```text
 Fixed = {PF=1, EF=0}
@@ -712,7 +712,7 @@ After executing `IndexDecision`, the index recalculates `CurrentFileName`. `File
 M_update = {FileUpdateIntent, CF}
 ```
 
-#### Table 4.8. Current File
+#### Collection 4.8. Current File
 
 ```text
 Fixed = {}
@@ -727,7 +727,7 @@ Available = {FileUpdateIntent, CF}
 | `UpdateIfCurrentFile` | 0 | `{}` | `{}` | `DoNothing` |
 | `UpdateIfCurrentFile` | 1 | `{}` | `{}` | `UpdateFile` |
 
-`FileUpdateIntent.ReadFile` cannot reach this table because it is consumed by the transition to the Post-Read Decision. A dormant file is not updated even when it has an outdated schema version. A successful write of the current file returns a new fingerprint, which must then be reflected in the index.
+`FileUpdateIntent.ReadFile` cannot reach this collection because it is consumed by the transition to the Post-Read Decision. A dormant file is not updated even when it has an outdated schema version. A successful write of the current file returns a new fingerprint, which must then be reflected in the index.
 
 ### Compact Decision Trees
 
@@ -778,11 +778,11 @@ File update inputs -> FileUpdateIntent, CF
 
 This chapter combines the index decisions from Chapter 2, the retry decisions from Chapter 3, and the file update decisions from Chapter 4 into one reconciliation algorithm.
 
-The pseudocode below includes the Chapter 4 flow and assumes that schema versioning is enabled. A production implementation must also support tables without versioning. When `CurrentSchemaVersion` is absent, it must omit all Chapter 4 logic: `FileUpdateIntent` and `FileUpdateDecision` are not calculated, and reconciliation executes only the index and retry decisions. The pseudocode intentionally remains unchanged because it describes the complete versioned algorithm rather than every implementation optimization.
+The pseudocode below includes the Chapter 4 flow and assumes that schema versioning is enabled. A production implementation must also support collections without versioning. When `CurrentSchemaVersion` is absent, it must omit all Chapter 4 logic: `FileUpdateIntent` and `FileUpdateDecision` are not calculated, and reconciliation executes only the index and retry decisions. The pseudocode intentionally remains unchanged because it describes the complete versioned algorithm rather than every implementation optimization.
 
 ### Full Algorithm Scheme
 
-Given the model and decision tables from the previous chapters, the algorithm pseudocode looks like this:
+Given the model and decision collections from the previous chapters, the algorithm pseudocode looks like this:
 
 ```text
 RetryDecision Reconcile(path)
@@ -804,7 +804,7 @@ RetryDecision Reconcile(path)
         if pass2.indexDecision is Skip AND pass2.fileUpdateIntent is DoNothing:
             return MakeRetryDecision(pass2.lastReadResult)
         else
-            # Each part runs under the lock it needs, in the order given by the decision table.
+            # Each part runs under the lock it needs, in the order given by the decision collection.
             # The index goes first: it recalculates CurrentFileName for the file update.
             if acquiredLocks.Cover(pass2.indexDecision.IndexedIdPart)
                 Execute(pass2.indexDecision.IndexedIdPart, path)
@@ -876,7 +876,7 @@ After the second pass, the algorithm first executes both parts of `IndexDecision
 
 `ResolveReadFile` reads the file or returns the cached state.
 
-`MakeRetryDecision` maps the available read error and id lock state through the tables from Chapter 3.
+`MakeRetryDecision` maps the available read error and id lock state through the collections from Chapter 3.
 
 ### Implementation Architecture
 
@@ -898,7 +898,7 @@ FileReconciler
 | Full reconciliation | File system event processing | Runs index reconciliation and file format update. |
 | Partial reconciliation | User command processing after reading a file | Reconciles the already-read result with the index under the lock already held by the caller. It does not update the file format. |
 
-`DecisionMaker` owns the pure index and file update decision tables from Chapters 2 and 4. It has no file system access, no index mutation access, no locks, and no retry logic. Its responsibility is limited to mapping already collected observations to decisions:
+`DecisionMaker` owns the pure index and file update decision collections from Chapters 2 and 4. It has no file system access, no index mutation access, no locks, and no retry logic. Its responsibility is limited to mapping already collected observations to decisions:
 
 ```text
 MakePreReadDecisions(fingerprintObservation, indexedStateObservation)
@@ -922,4 +922,4 @@ MakeFileUpdateDecision(fileUpdateIntent, currentFile)
 | `FileUpdateDecision` | `DoNothing` | Do not change the file. |
 | `FileUpdateDecision` | `UpdateFile` | Atomically write the decoded record in the current format and reflect the successful write result in the index. |
 
-`RetryDecisionMaker` owns the pure retry tables from Chapter 3. It has no file system access, no index mutation access, and no scheduling logic. Before each normal return, `FileReconciler` gives it the latest available read error and the id lock mismatch state. The resulting retry decision is returned to the scheduler.
+`RetryDecisionMaker` owns the pure retry collections from Chapter 3. It has no file system access, no index mutation access, and no scheduling logic. Before each normal return, `FileReconciler` gives it the latest available read error and the id lock mismatch state. The resulting retry decision is returned to the scheduler.

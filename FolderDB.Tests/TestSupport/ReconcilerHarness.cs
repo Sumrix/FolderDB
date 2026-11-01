@@ -14,32 +14,32 @@ namespace FolderDB.Tests.TestSupport;
 internal sealed class ReconcilerHarness : IAsyncDisposable
 {
     private readonly string _rootPath;
-    private readonly string _tablePath;
+    private readonly string _collectionPath;
     private readonly InlineRetryScheduler _retryScheduler;
     private readonly FileReconciler<string, TestRecord, string> _fileReconciler;
     private readonly DirectoryReconciler<string, TestRecord, string> _directoryReconciler;
 
     private ReconcilerHarness(
         string rootPath,
-        string tablePath,
+        string collectionPath,
         InlineRetryScheduler retryScheduler,
-        TableIndex<string, TestRecord, string> index,
+        CollectionIndex<string, TestRecord, string> index,
         FileReconciler<string, TestRecord, string> fileReconciler,
         DirectoryReconciler<string, TestRecord, string> directoryReconciler)
     {
         _rootPath = rootPath;
-        _tablePath = tablePath;
+        _collectionPath = collectionPath;
         _retryScheduler = retryScheduler;
         _fileReconciler = fileReconciler;
         _directoryReconciler = directoryReconciler;
-        TablePath = tablePath;
+        CollectionPath = collectionPath;
         RetryScheduler = retryScheduler;
         Index = index;
     }
 
-    public string TablePath { get; }
+    public string CollectionPath { get; }
 
-    public TableIndex<string, TestRecord, string> Index { get; }
+    public CollectionIndex<string, TestRecord, string> Index { get; }
 
     public InlineRetryScheduler RetryScheduler { get; }
 
@@ -50,7 +50,7 @@ internal sealed class ReconcilerHarness : IAsyncDisposable
 
     public void RequestDirectoryReconcile()
     {
-        _retryScheduler.Enqueue(_tablePath,
+        _retryScheduler.Enqueue(_collectionPath,
             (_, cancellationToken) => _directoryReconciler.ReconcileAsync(cancellationToken));
     }
 
@@ -61,11 +61,11 @@ internal sealed class ReconcilerHarness : IAsyncDisposable
             .UpgradeTo(1, legacy => new TestRecord(legacy.Id, 1, $"migrated-{legacy.LegacyValue}"))
             .Build();
         var rootPath = Directory.CreateTempSubdirectory().FullName;
-        var tablePath = Path.Combine(rootPath, "table");
+        var collectionPath = Path.Combine(rootPath, "collection");
         var indexPath = Path.Combine(rootPath, "index-state.json");
-        Directory.CreateDirectory(tablePath);
+        Directory.CreateDirectory(collectionPath);
         var codec = new RecordCodec<string, TestRecord>(recordSchema);
-        var table = TestTableContext.Create<string, TestRecord, string>(
+        var collection = TestCollectionContext.Create<string, TestRecord, string>(
             static value => value.Value,
             static record => [record.Id],
             StringComparer.Ordinal,
@@ -74,25 +74,25 @@ internal sealed class ReconcilerHarness : IAsyncDisposable
 
         var indexEngine = await RecordScopedIndexEngine<string, TestRecord, string>.StartAsync(
             indexPath,
-            table,
-            TestTableContext.CreateJsonIndexPersistence(
+            collection,
+            TestCollectionContext.CreateJsonIndexPersistence(
                 TestsJsonContext.Default.String,
                 TestsJsonContext.Default.String,
                 StringComparer.Ordinal),
             autoSaveEnabled: false);
-        var index = new TableIndex<string, TestRecord, string>(indexEngine, table);
+        var index = new CollectionIndex<string, TestRecord, string>(indexEngine, collection);
 
         var effectiveFileStore = fileStore ?? new FileStore();
         var store = new RecordStore<string, TestRecord>(codec, effectiveFileStore);
         var retryScheduler = new InlineRetryScheduler();
         var fileReconciler = new FileReconciler<string, TestRecord, string>(
-            table,
+            collection,
             effectiveFileStore,
             store,
             index,
             NullLogger<FileReconciler<string, TestRecord, string>>.Instance);
         var directoryReconciler = new DirectoryReconciler<string, TestRecord, string>(
-            tablePath,
+            collectionPath,
             index,
             fileReconciler,
             (path, minBackoff) => retryScheduler.Enqueue(path, fileReconciler.ReconcileAsync, minBackoff),
@@ -100,7 +100,7 @@ internal sealed class ReconcilerHarness : IAsyncDisposable
 
         return new ReconcilerHarness(
             rootPath,
-            tablePath,
+            collectionPath,
             retryScheduler,
             index,
             fileReconciler,
@@ -109,14 +109,14 @@ internal sealed class ReconcilerHarness : IAsyncDisposable
 
     public async Task<string> WriteRecordAsync(string fileName, TestRecord record)
     {
-        var path = Path.Combine(TablePath, fileName);
+        var path = Path.Combine(CollectionPath, fileName);
         await File.WriteAllTextAsync(path, JsonSerializer.Serialize(record, TestsJsonContext.Default.TestRecord));
         return path;
     }
 
     public async Task<string> WriteLegacyRecordAsync(string fileName, LegacyTestRecord record)
     {
-        var path = Path.Combine(TablePath, fileName);
+        var path = Path.Combine(CollectionPath, fileName);
         await File.WriteAllTextAsync(path, JsonSerializer.Serialize(record));
         return path;
     }

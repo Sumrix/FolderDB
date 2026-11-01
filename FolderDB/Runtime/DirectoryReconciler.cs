@@ -15,8 +15,8 @@ using Microsoft.Extensions.Logging;
 namespace FolderDB.Runtime;
 
 internal sealed class DirectoryReconciler<TKey, TRecord, TProjection>(
-    string tablePath,
-    TableIndex<TKey, TRecord, TProjection> index,
+    string collectionPath,
+    CollectionIndex<TKey, TRecord, TProjection> index,
     FileReconciler<TKey, TRecord, TProjection> fileReconciler,
     Action<string, bool> requestFileReconcile,
     ILogger logger)
@@ -27,19 +27,19 @@ internal sealed class DirectoryReconciler<TKey, TRecord, TProjection>(
     {
         using var _ = logger.BeginMethodScope();
         var stopwatch = Stopwatch.StartNew();
-        logger.LogDebug("Rescan started: path=\"{Path}\"", tablePath);
+        logger.LogDebug("Rescan started: path=\"{Path}\"", collectionPath);
 
         IEnumerable<string> filesOnDisk;
         try
         {
-            filesOnDisk = Directory.GetFiles(tablePath, "*.json", SearchOption.TopDirectoryOnly)
+            filesOnDisk = Directory.GetFiles(collectionPath, "*.json", SearchOption.TopDirectoryOnly)
                 .Select(path => Path.GetFileName(path));
         }
         catch (DirectoryNotFoundException)
         {
             using (var exclusiveIndexScope = await index.EnterExclusiveScopeAsync(cancellationToken))
             {
-                logger.LogWarning("Rescan directory missing, index cleared: path=\"{Path}\"", tablePath);
+                logger.LogWarning("Rescan directory missing, index cleared: path=\"{Path}\"", collectionPath);
                 exclusiveIndexScope.Clear();
             }
 
@@ -47,7 +47,7 @@ internal sealed class DirectoryReconciler<TKey, TRecord, TProjection>(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Rescan directory read failed, will retry: path=\"{Path}\"", tablePath);
+            logger.LogError(ex, "Rescan directory read failed, will retry: path=\"{Path}\"", collectionPath);
             return RetryDecision.RetryWithBackoff;
         }
 
@@ -61,7 +61,7 @@ internal sealed class DirectoryReconciler<TKey, TRecord, TProjection>(
 
         foreach (var fileName in processingFileNames)
         {
-            var filePath = Path.Combine(tablePath, fileName);
+            var filePath = Path.Combine(collectionPath, fileName);
             var result = await fileReconciler.ReconcileAsync(filePath, cancellationToken);
             if (result != RetryDecision.Complete)
             {
@@ -73,7 +73,7 @@ internal sealed class DirectoryReconciler<TKey, TRecord, TProjection>(
         {
             logger.LogDebug(
                 "Rescan completed: path=\"{Path}\" files={Files} entries={Entries} durationMs={DurationMs}",
-                tablePath,
+                collectionPath,
                 processingFileNames.Count,
                 sharedIndexScope.Records.Count,
                 stopwatch.ElapsedMilliseconds);

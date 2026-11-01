@@ -15,8 +15,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace FolderDB.Tests;
 
 // Decision makers and executors intentionally have no duplicate unit tests. They are direct,
-// elementary translations of the decision tables in docs/index-reconciliation-rulebook.md;
-// reproducing those tables as test expectations would create a second implementation of the
+// elementary translations of the decision collections in docs/index-reconciliation-rulebook.md;
+// reproducing those collections as test expectations would create a second implementation of the
 // same rules. These tests focus on the non-obvious orchestration behavior of FileReconciler.
 public class FileReconcilerTests
 {
@@ -337,23 +337,23 @@ public class FileReconcilerTests
 
         private Harness(
             string rootPath,
-            string tablePath,
+            string collectionPath,
             RecordScopedIndexEngine<string, TestRecord, string> engine,
-            TableIndex<string, TestRecord, string> index,
+            CollectionIndex<string, TestRecord, string> index,
             RecordStore<string, TestRecord> store,
             FileReconciler<string, TestRecord, string> reconciler)
         {
             _rootPath = rootPath;
-            TablePath = tablePath;
+            CollectionPath = collectionPath;
             Engine = engine;
             Index = index;
             Store = store;
             Reconciler = reconciler;
         }
 
-        public string TablePath { get; }
+        public string CollectionPath { get; }
         public RecordScopedIndexEngine<string, TestRecord, string> Engine { get; }
-        public TableIndex<string, TestRecord, string> Index { get; }
+        public CollectionIndex<string, TestRecord, string> Index { get; }
         public RecordStore<string, TestRecord> Store { get; }
         public FileReconciler<string, TestRecord, string> Reconciler { get; }
 
@@ -378,18 +378,18 @@ public class FileReconcilerTests
             IFileStore? fileStore)
         {
             var rootPath = Directory.CreateTempSubdirectory().FullName;
-            var tablePath = Path.Combine(rootPath, "table");
+            var collectionPath = Path.Combine(rootPath, "collection");
             var indexPath = Path.Combine(rootPath, "index.json");
-            Directory.CreateDirectory(tablePath);
+            Directory.CreateDirectory(collectionPath);
 
             var codec = new RecordCodec<string, TestRecord>(policy);
-            var context = TestTableContext.Create<string, TestRecord, string>(
+            var context = TestCollectionContext.Create<string, TestRecord, string>(
                 static record => record.Value,
                 static record => [record.Id],
                 StringComparer.OrdinalIgnoreCase,
                 StringComparer.OrdinalIgnoreCase,
                 codec);
-            var persistence = TestTableContext.CreateJsonIndexPersistence(
+            var persistence = TestCollectionContext.CreateJsonIndexPersistence(
                 TestsJsonContext.Default.String,
                 TestsJsonContext.Default.String,
                 StringComparer.OrdinalIgnoreCase);
@@ -398,7 +398,7 @@ public class FileReconcilerTests
                 context,
                 persistence,
                 autoSaveEnabled: false);
-            var index = new TableIndex<string, TestRecord, string>(engine, context);
+            var index = new CollectionIndex<string, TestRecord, string>(engine, context);
             var effectiveFileStore = fileStore ?? new FileStore();
             var store = new RecordStore<string, TestRecord>(codec, effectiveFileStore);
             var reconciler = new FileReconciler<string, TestRecord, string>(
@@ -408,12 +408,12 @@ public class FileReconcilerTests
                 index,
                 NullLogger<FileReconciler<string, TestRecord, string>>.Instance);
 
-            return new(rootPath, tablePath, engine, index, store, reconciler);
+            return new(rootPath, collectionPath, engine, index, store, reconciler);
         }
 
         public async Task<string> WriteAsync(string fileName, TestRecord record)
         {
-            var path = Path.Combine(TablePath, fileName);
+            var path = Path.Combine(CollectionPath, fileName);
             await File.WriteAllTextAsync(
                 path,
                 JsonSerializer.Serialize(record, TestsJsonContext.Default.TestRecord));
@@ -422,7 +422,7 @@ public class FileReconcilerTests
 
         public async Task<string> WriteLegacyAsync(string fileName, LegacyTestRecord record)
         {
-            var path = Path.Combine(TablePath, fileName);
+            var path = Path.Combine(CollectionPath, fileName);
             await File.WriteAllTextAsync(path, JsonSerializer.Serialize(record));
             return path;
         }

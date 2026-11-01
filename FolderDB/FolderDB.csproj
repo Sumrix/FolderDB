@@ -18,7 +18,7 @@
   <PropertyGroup>
     <Authors>Sumrix</Authors>
     <Copyright>Copyright © 2026 Sumrix</Copyright>
-    <Description>A local-first file-system database for .NET. A folder is a table and a file is a record, so the data stays readable, editable and movable with ordinary operating system tools.</Description>
+    <Description>A local-first file-system database for .NET. A folder is a collection and a file is a record, so the data stays readable, editable and movable with ordinary operating system tools.</Description>
     <PackageTags>database;embedded;local-first;file-system;json;storage;repository</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

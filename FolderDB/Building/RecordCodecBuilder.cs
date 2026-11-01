@@ -7,13 +7,13 @@ using FolderDB.Encoding;
 namespace FolderDB.Building;
 
 public sealed class RecordCodecBuilder<TKey, TRecord>
-    : TableOptionsBuilder<TKey, TRecord, RecordCodecBuilder<TKey, TRecord>>
+    : CollectionOptionsBuilder<TKey, TRecord, RecordCodecBuilder<TKey, TRecord>>
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
 {
     protected override RecordCodecBuilder<TKey, TRecord> This => this;
 
-    internal RecordCodecBuilder(TableOptions<TKey, TRecord> options)
+    internal RecordCodecBuilder(CollectionOptions<TKey, TRecord> options)
         : base(options)
     {
     }

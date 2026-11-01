@@ -3,16 +3,16 @@ using Microsoft.Extensions.Logging;
 
 namespace FolderDB.Infrastructure.Logging;
 
-internal class TableLogger(ILogger inner, string tableName) : ILogger
+internal class CollectionLogger(ILogger inner, string collectionName) : ILogger
 {
     private readonly ILogger _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-    private readonly string _tableName = tableName ?? throw new ArgumentNullException(nameof(tableName));
+    private readonly string _collectionName = collectionName ?? throw new ArgumentNullException(nameof(collectionName));
 
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull
     {
         if (state is MethodScope methodScope)
         {
-            return _inner.BeginScope(new TableMethodScope(_tableName, methodScope.Method));
+            return _inner.BeginScope(new CollectionMethodScope(_collectionName, methodScope.Method));
         }
 
         return _inner.BeginScope(state);

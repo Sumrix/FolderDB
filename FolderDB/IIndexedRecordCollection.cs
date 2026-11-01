@@ -3,16 +3,16 @@ using System.Collections.Generic;
 namespace FolderDB;
 
 /// <summary>
-/// Represents a table-like API with a projection index over file-backed records.
+/// Represents a collection-like API with a projection index over file-backed records.
 /// </summary>
 /// <typeparam name="TKey">The type of the record id.</typeparam>
-/// <typeparam name="TRecord">The record type stored in the table.</typeparam>
-/// <typeparam name="TProjection">The projection type the table was defined with.</typeparam>
-public interface IIndexedTable<TKey, TRecord, TProjection> : ITable<TKey, TRecord>
+/// <typeparam name="TRecord">The record type stored in the collection.</typeparam>
+/// <typeparam name="TProjection">The projection type the collection was defined with.</typeparam>
+public interface IIndexedRecordCollection<TKey, TRecord, TProjection> : IRecordCollection<TKey, TRecord>
     where TRecord : IRecord<TKey>
 {
     /// <summary>
-    /// Gets a collection containing the indexed projection of each record in the table.
+    /// Gets a collection containing the indexed projection of each record in the collection.
     /// </summary>
     /// <returns>A dictionary containing the projections, keyed by record id.</returns>
     /// <remarks>
@@ -23,7 +23,7 @@ public interface IIndexedTable<TKey, TRecord, TProjection> : ITable<TKey, TRecor
 
     /// <summary>
     /// Gets a collection containing the indexed state of the file currently associated with each
-    /// record in the table.
+    /// record in the collection.
     /// </summary>
     /// <returns>
     /// A dictionary containing an <see cref="IndexedFile{TProjection}"/> for each record, keyed by

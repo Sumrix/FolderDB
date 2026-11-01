@@ -9,7 +9,7 @@ namespace FolderDB.Tests;
 public class DirectoryReconcilerTests
 {
     [Fact]
-    public async Task RequestDirectoryReconcile_WhenTableDirectoryMissing_ClearsIndex()
+    public async Task RequestDirectoryReconcile_WhenCollectionDirectoryMissing_ClearsIndex()
     {
         await using var harness = await ReconcilerHarness.CreateAsync();
         var filePath = await harness.WriteRecordAsync("alpha.json", new("id-1", 1, "value"));
@@ -17,7 +17,7 @@ public class DirectoryReconcilerTests
         await harness.RetryScheduler.RunAllAsync(TestContext.Current.CancellationToken);
         AssertNoRetry(harness);
 
-        Directory.Delete(harness.TablePath, recursive: true);
+        Directory.Delete(harness.CollectionPath, recursive: true);
 
         harness.RequestDirectoryReconcile();
         await harness.RetryScheduler.RunAllAsync(TestContext.Current.CancellationToken);
@@ -59,7 +59,7 @@ public class DirectoryReconcilerTests
         await using var harness = await ReconcilerHarness.CreateAsync();
         await harness.WriteRecordAsync("a.json", new("id-a", 1, "one"));
         var legacyPath = await harness.WriteLegacyRecordAsync("legacy.json", new("id-legacy", 0, "old"));
-        await File.WriteAllTextAsync(Path.Combine(harness.TablePath, "broken.json"), "{ not json", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(harness.CollectionPath, "broken.json"), "{ not json", TestContext.Current.CancellationToken);
 
         harness.RequestDirectoryReconcile();
         await harness.RetryScheduler.RunAllAsync(TestContext.Current.CancellationToken);

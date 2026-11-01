@@ -14,7 +14,7 @@ public sealed class IndexBuilderNoProjection<TKey, TRecord>
 
     internal IndexBuilderNoProjection(
         ProjectionStep<TKey, TRecord, NoProjection> step,
-        TableOptions<TKey, TRecord> options)
+        CollectionOptions<TKey, TRecord> options)
         : base(step, options)
     {
     }

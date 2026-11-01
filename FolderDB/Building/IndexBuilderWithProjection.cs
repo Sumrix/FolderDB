@@ -13,7 +13,7 @@ public sealed class IndexBuilderWithProjection<TKey, TRecord, TProjection>
 
     internal IndexBuilderWithProjection(
         ProjectionStep<TKey, TRecord, TProjection> step,
-        TableOptions<TKey, TRecord> options)
+        CollectionOptions<TKey, TRecord> options)
         : base(step, options)
     {
     }

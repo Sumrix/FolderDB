@@ -19,15 +19,15 @@ using Microsoft.Extensions.Logging;
 
 namespace FolderDB.Runtime;
 
-public class TableEngine<TKey, TRecord, TProjection> :
-    ITableEngine,
-    IIndexedTable<TKey, TRecord, TProjection>
+public class CollectionEngine<TKey, TRecord, TProjection> :
+    ICollectionEngine,
+    IIndexedRecordCollection<TKey, TRecord, TProjection>
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
 {
-    private readonly string _tablePath;
+    private readonly string _collectionPath;
     private readonly IRetryScheduler<string> _retryScheduler;
-    private readonly TableIndex<TKey, TRecord, TProjection> _index;
+    private readonly CollectionIndex<TKey, TRecord, TProjection> _index;
     private readonly FileReconciler<TKey, TRecord, TProjection> _fileReconciler;
     private readonly DirectoryReconciler<TKey, TRecord, TProjection> _directoryReconciler;
     private readonly DatabaseOperationProcessor<TKey, TRecord, TProjection> _processor;
@@ -40,16 +40,16 @@ public class TableEngine<TKey, TRecord, TProjection> :
     public IReadOnlyDictionary<TKey, TProjection> Projections => _projections;
     public IReadOnlyDictionary<TKey, IndexedFile<TProjection>> Files => _indexedFiles;
 
-    private TableEngine(
-        string tablePath,
+    private CollectionEngine(
+        string collectionPath,
         IRetryScheduler<string> retryScheduler,
-        TableIndex<TKey, TRecord, TProjection> index,
+        CollectionIndex<TKey, TRecord, TProjection> index,
         FileReconciler<TKey, TRecord, TProjection> fileReconciler,
         DirectoryReconciler<TKey, TRecord, TProjection> directoryReconciler,
         DatabaseOperationProcessor<TKey, TRecord, TProjection> processor,
         PathWatcher watcher)
     {
-        _tablePath = tablePath;
+        _collectionPath = collectionPath;
         _retryScheduler = retryScheduler;
         _index = index;
         _fileReconciler = fileReconciler;
@@ -79,10 +79,10 @@ public class TableEngine<TKey, TRecord, TProjection> :
     /// <see cref="PathWatcher(string, string, ILogger{PathWatcher})"/>,
     /// <see cref="PathWatcher.EnableRaisingEvents"/>.
     /// </remarks>
-    public static async Task<TableEngine<TKey, TRecord, TProjection>> StartAsync(
-        string tablePath,
+    public static async Task<CollectionEngine<TKey, TRecord, TProjection>> StartAsync(
+        string collectionPath,
         string indexFilePath,
-        TableDefinition<TKey, TRecord, TProjection> definition,
+        CollectionDefinition<TKey, TRecord, TProjection> definition,
         IFileStore storage,
         IRetryScheduler<string> retryScheduler,
         DatabaseOptions options,
@@ -91,39 +91,39 @@ public class TableEngine<TKey, TRecord, TProjection> :
     {
         ArgumentNullException.ThrowIfNull(loggerFactory);
 
-        var log = loggerFactory.CreateLogger<TableEngine<TKey, TRecord, TProjection>>();
+        var log = loggerFactory.CreateLogger<CollectionEngine<TKey, TRecord, TProjection>>();
         using var _ = log.BeginMethodScope();
 
-        Directory.CreateDirectory(tablePath);
+        Directory.CreateDirectory(collectionPath);
 
-        var tableContext = CreateTableContext(definition, loggerFactory);
+        var collectionContext = CreateCollectionContext(definition, loggerFactory);
         var rawStore = new RecordStore<TKey, TRecord>(
-            tableContext.RecordCodec,
+            collectionContext.RecordCodec,
             storage);
         var operationStore = new RecordStore<TKey, TRecord>(
-            tableContext.RecordCodec,
+            collectionContext.RecordCodec,
             CreateRetryFileStore(
                 storage,
                 options,
                 loggerFactory));
-        var index = await CreateIndexAsync(indexFilePath, definition, tableContext, options, loggerFactory, cancellationToken);
+        var index = await CreateIndexAsync(indexFilePath, definition, collectionContext, options, loggerFactory, cancellationToken);
 
         var fileReconciler = new FileReconciler<TKey, TRecord, TProjection>(
-            tableContext,
+            collectionContext,
             storage,
             rawStore,
             index,
             loggerFactory.CreateLogger<FileReconciler<TKey, TRecord, TProjection>>());
         var directoryReconciler = new DirectoryReconciler<TKey, TRecord, TProjection>(
-            tablePath,
+            collectionPath,
             index,
             fileReconciler,
             (path, minBackoff) => retryScheduler.Enqueue(path, fileReconciler.ReconcileAsync, minBackoff),
             loggerFactory.CreateLogger<DirectoryReconciler<TKey, TRecord, TProjection>>());
 
         var processor = new DatabaseOperationProcessor<TKey, TRecord, TProjection>(
-            tablePath,
-            tableContext,
+            collectionPath,
+            collectionContext,
             index,
             operationStore,
             options.MaxFileNameReserveAttempts,
@@ -132,24 +132,24 @@ public class TableEngine<TKey, TRecord, TProjection> :
             loggerFactory.CreateLogger<DatabaseOperationProcessor<TKey, TRecord, TProjection>>());
 
         var watcher = new PathWatcher(
-            tablePath,
+            collectionPath,
             ".json",
             loggerFactory.CreateLogger<PathWatcher>());
-        var tableEngine = new TableEngine<TKey, TRecord, TProjection>(
-            tablePath,
+        var collectionEngine = new CollectionEngine<TKey, TRecord, TProjection>(
+            collectionPath,
             retryScheduler,
             index,
             fileReconciler,
             directoryReconciler,
             processor,
             watcher);
-        watcher.Changed += (_, path) => tableEngine.RequestFileReconcile(path);
-        watcher.Error += (_, _) => tableEngine.RequestDirectoryReconcile();
+        watcher.Changed += (_, path) => collectionEngine.RequestFileReconcile(path);
+        watcher.Error += (_, _) => collectionEngine.RequestDirectoryReconcile();
         watcher.EnableRaisingEvents = true;
 
-        tableEngine.RequestDirectoryReconcile();
+        collectionEngine.RequestDirectoryReconcile();
 
-        return tableEngine;
+        return collectionEngine;
     }
 
     /// <exception cref="InvalidOperationException">
@@ -181,8 +181,8 @@ public class TableEngine<TKey, TRecord, TProjection> :
     /// <exception cref="InvalidOperationException">
     /// The record codec factory configured on the definition returned null.
     /// </exception>
-    private static TableContext<TKey, TRecord, TProjection> CreateTableContext(
-        TableDefinition<TKey, TRecord, TProjection> definition,
+    private static CollectionContext<TKey, TRecord, TProjection> CreateCollectionContext(
+        CollectionDefinition<TKey, TRecord, TProjection> definition,
         ILoggerFactory loggerFactory)
     {
         var recordContext = new RecordCodecContext(loggerFactory);
@@ -190,10 +190,10 @@ public class TableEngine<TKey, TRecord, TProjection> :
         if (recordCodec is null)
         {
             throw new InvalidOperationException(
-                $"'{definition.Name}' table's defined {nameof(definition.RecordCodecFactory)} does not provide record codec.");
+                $"'{definition.Name}' collection's defined {nameof(definition.RecordCodecFactory)} does not provide record codec.");
         }
 
-        return new TableContext<TKey, TRecord, TProjection>
+        return new CollectionContext<TKey, TRecord, TProjection>
         {
             Name = definition.Name,
             KeyComparer = definition.KeyComparer,
@@ -216,10 +216,10 @@ public class TableEngine<TKey, TRecord, TProjection> :
     /// The definition provides neither of the two factories.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
-    private static async Task<TableIndex<TKey, TRecord, TProjection>> CreateIndexAsync(
+    private static async Task<CollectionIndex<TKey, TRecord, TProjection>> CreateIndexAsync(
         string indexFilePath,
-        TableDefinition<TKey, TRecord, TProjection> definition,
-        TableContext<TKey, TRecord, TProjection> tableContext,
+        CollectionDefinition<TKey, TRecord, TProjection> definition,
+        CollectionContext<TKey, TRecord, TProjection> collectionContext,
         DatabaseOptions options,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
@@ -228,17 +228,17 @@ public class TableEngine<TKey, TRecord, TProjection> :
 
         if (definition.IndexPersistenceFactory is not null)
         {
-            var ctx = new TableIndexPersistenceContext<TKey, TRecord, TProjection>(tableContext, loggerFactory);
+            var ctx = new CollectionIndexPersistenceContext<TKey, TRecord, TProjection>(collectionContext, loggerFactory);
             var persistence = definition.IndexPersistenceFactory(ctx);
             if (persistence is null)
             {
                 throw new InvalidOperationException(
-                    $"'{tableContext.Name}' table's defined {nameof(definition.IndexPersistenceFactory)} does not provide index persistence.");
+                    $"'{collectionContext.Name}' collection's defined {nameof(definition.IndexPersistenceFactory)} does not provide index persistence.");
             }
 
             engine = await RecordScopedIndexEngine<TKey, TRecord, TProjection>.StartAsync(
                 indexFilePath,
-                tableContext,
+                collectionContext,
                 persistence,
                 options.IndexAutoSaveInterval,
                 loggerFactory,
@@ -249,7 +249,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
         {
             var ctx = new RecordScopedIndexEngineContext<TKey, TRecord, TProjection>
             {
-                Table = tableContext,
+                Collection = collectionContext,
                 DatabaseOptions = options,
                 IndexFilePath = indexFilePath,
                 CancellationToken = cancellationToken
@@ -258,16 +258,16 @@ public class TableEngine<TKey, TRecord, TProjection> :
             if (engine is null)
             {
                 throw new InvalidOperationException(
-                    $"'{tableContext.Name}' table's defined {nameof(definition.IndexEngineFactory)} does not provide index engine.");
+                    $"'{collectionContext.Name}' collection's defined {nameof(definition.IndexEngineFactory)} does not provide index engine.");
             }
         }
         else
         {
             throw new InvalidOperationException(
-                $"'{tableContext.Name}' table definition must provide either {nameof(definition.IndexPersistenceFactory)} or {nameof(definition.IndexEngineFactory)} to create the index engine.");
+                $"'{collectionContext.Name}' collection definition must provide either {nameof(definition.IndexPersistenceFactory)} or {nameof(definition.IndexEngineFactory)} to create the index engine.");
         }
 
-        return new TableIndex<TKey, TRecord, TProjection>(engine, tableContext);
+        return new CollectionIndex<TKey, TRecord, TProjection>(engine, collectionContext);
     }
 
     /// <exception cref="ArgumentNullException"><paramref name="id"/> is <see langword="null"/>.</exception>
@@ -290,7 +290,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
     ///
     /// -or-
     ///
@@ -334,7 +334,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
     ///
     /// -or-
     ///
@@ -371,7 +371,7 @@ public class TableEngine<TKey, TRecord, TProjection> :
 
     public void RequestDirectoryReconcile()
     {
-        _retryScheduler.Enqueue(_tablePath, ReconcileDirectoryAsync);
+        _retryScheduler.Enqueue(_collectionPath, ReconcileDirectoryAsync);
     }
 
     private void RequestFileReconcile(string path)

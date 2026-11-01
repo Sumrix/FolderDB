@@ -9,9 +9,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FolderDB.Tests.TestSupport;
 
-internal static class TestTableContext
+internal static class TestCollectionContext
 {
-    public static TableContext<TKey, TRecord, TProjection> Create<TKey, TRecord, TProjection>(
+    public static CollectionContext<TKey, TRecord, TProjection> Create<TKey, TRecord, TProjection>(
         Func<TRecord, TProjection> createProjection,
         Func<TRecord, IEnumerable<string>> generateFileNames,
         IEqualityComparer<TKey> keyEqualityComparer,
@@ -20,7 +20,7 @@ internal static class TestTableContext
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        return new TableContext<TKey, TRecord, TProjection>
+        return new CollectionContext<TKey, TRecord, TProjection>
         {
             Name = typeof(TRecord).Name,
             KeyComparer = keyComparer,
@@ -31,16 +31,16 @@ internal static class TestTableContext
         };
     }
 
-    public static ITableIndexPersistence<TKey, TProjection> CreateJsonIndexPersistence<TKey, TProjection>(
+    public static ICollectionIndexPersistence<TKey, TProjection> CreateJsonIndexPersistence<TKey, TProjection>(
         JsonTypeInfo<TKey> keyTypeInfo,
         JsonTypeInfo<TProjection> projectionTypeInfo,
         IEqualityComparer<TKey> keyEqualityComparer)
         where TKey : notnull
     {
-        return new JsonTableIndexPersistence<TKey, TProjection>(
+        return new JsonCollectionIndexPersistence<TKey, TProjection>(
             keyTypeInfo,
             projectionTypeInfo,
             keyEqualityComparer,
-            NullLoggerFactory.Instance.CreateLogger<JsonTableIndexPersistence<TKey, TProjection>>());
+            NullLoggerFactory.Instance.CreateLogger<JsonCollectionIndexPersistence<TKey, TProjection>>());
     }
 }

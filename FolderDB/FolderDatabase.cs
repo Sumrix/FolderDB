@@ -11,13 +11,13 @@ using FolderDB.Runtime;
 namespace FolderDB;
 
 /// <summary>
-/// Represents a running set of file-backed tables stored under a single root directory.
+/// Represents a running set of file-backed collections stored under a single root directory.
 /// </summary>
 public class FolderDatabase : IDatabase
 {
     private readonly DatabaseResources _resources;
-    private readonly IReadOnlyDictionary<Type, ITableEngine> _tableEnginesByType;
-    private readonly IReadOnlyDictionary<string, ITableEngine> _tableEnginesByDirectoryName;
+    private readonly IReadOnlyDictionary<Type, ICollectionEngine> _collectionEnginesByType;
+    private readonly IReadOnlyDictionary<string, ICollectionEngine> _collectionEnginesByDirectoryName;
     private readonly PathWatcher _rootPathWatcher;
 
     private int _disposed;
@@ -30,14 +30,14 @@ public class FolderDatabase : IDatabase
     internal FolderDatabase(
         string rootPath,
         DatabaseResources resources,
-        IReadOnlyDictionary<Type, ITableEngine> tableEnginesByType,
-        IReadOnlyDictionary<string, ITableEngine> tableEnginesByDirectoryName,
+        IReadOnlyDictionary<Type, ICollectionEngine> collectionEnginesByType,
+        IReadOnlyDictionary<string, ICollectionEngine> collectionEnginesByDirectoryName,
         PathWatcher rootPathWatcher)
     {
         RootPath = rootPath;
         _resources = resources;
-        _tableEnginesByType = tableEnginesByType;
-        _tableEnginesByDirectoryName = tableEnginesByDirectoryName;
+        _collectionEnginesByType = collectionEnginesByType;
+        _collectionEnginesByDirectoryName = collectionEnginesByDirectoryName;
         _rootPathWatcher = rootPathWatcher;
 
         // Wired last: the handlers read the fields above, and enabling the watcher can raise an
@@ -48,7 +48,7 @@ public class FolderDatabase : IDatabase
     }
 
     /// <summary>
-    /// Opens a database with the specified tables at the specified path.
+    /// Opens a database with the specified collections at the specified path.
     /// </summary>
     /// <remarks>
     /// Opening takes longer the first time the database is opened in a directory, or after its index cache was discarded.
@@ -57,16 +57,16 @@ public class FolderDatabase : IDatabase
     /// The path to the database, specified as a relative or absolute path.
     /// A relative path is interpreted as relative to the current working directory.
     /// </param>
-    /// <param name="tableDefinitions">The definitions that describe and configure the tables in the database.</param>
+    /// <param name="collectionDefinitions">The definitions that describe and configure the collections in the database.</param>
     /// <param name="options">Options to control the behavior of the database.</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
     /// <returns>A task that returns the opened <see cref="FolderDatabase"/> instance.</returns>
     /// <exception cref="ArgumentNullException">
-    /// <paramref name="path"/> or <paramref name="tableDefinitions"/> is <see langword="null"/>.
+    /// <paramref name="path"/> or <paramref name="collectionDefinitions"/> is <see langword="null"/>.
     ///
     /// -or-
     ///
-    /// <paramref name="tableDefinitions"/> contains a <see langword="null"/> definition.
+    /// <paramref name="collectionDefinitions"/> contains a <see langword="null"/> definition.
     /// </exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="path"/> is a zero-length string, contains only white space on Windows systems,
@@ -83,7 +83,7 @@ public class FolderDatabase : IDatabase
     ///
     /// -or-
     ///
-    /// <paramref name="tableDefinitions"/> contains a definition with an invalid name, or two
+    /// <paramref name="collectionDefinitions"/> contains a definition with an invalid name, or two
     /// definitions that collide by name or by record type.
     ///
     /// -or-
@@ -95,11 +95,11 @@ public class FolderDatabase : IDatabase
     /// <paramref name="path"/> contains a colon character (:) that is not part of a drive label ("C:\").
     /// </exception>
     /// <exception cref="InvalidOperationException">
-    /// <paramref name="tableDefinitions"/> contains a definition with a <see langword="null"/> value.
+    /// <paramref name="collectionDefinitions"/> contains a definition with a <see langword="null"/> value.
     ///
     /// -or-
     ///
-    /// A factory configured in <paramref name="options"/> or on <paramref name="tableDefinitions"/> returned
+    /// A factory configured in <paramref name="options"/> or on <paramref name="collectionDefinitions"/> returned
     /// <see langword="null"/>.
     ///
     /// -or-
@@ -127,15 +127,15 @@ public class FolderDatabase : IDatabase
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public static Task<FolderDatabase> OpenAsync(
         string path,
-        IReadOnlyList<ITableDefinition> tableDefinitions,
+        IReadOnlyList<ICollectionDefinition> collectionDefinitions,
         DatabaseOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return DatabaseFactory.OpenDatabaseAsync(path, tableDefinitions, options, cancellationToken);
+        return DatabaseFactory.OpenDatabaseAsync(path, collectionDefinitions, options, cancellationToken);
     }
 
     /// <summary>
-    /// Opens a database as a single table at the specified path.
+    /// Opens a database as a single collection at the specified path.
     /// </summary>
     /// <remarks>
     /// Opening takes longer the first time the database is opened in a directory, or after its index cache was discarded.
@@ -143,12 +143,12 @@ public class FolderDatabase : IDatabase
     /// <param name="path">
     /// The path to the database, specified as a relative or absolute path.
     /// A relative path is interpreted as relative to the current working directory.
-    /// The directory that holds the table is created when missing.
+    /// The directory that holds the collection is created when missing.
     /// </param>
-    /// <param name="definition">The definition that describes and configures the table.</param>
+    /// <param name="definition">The definition that describes and configures the collection.</param>
     /// <param name="options">Options to control the behavior of the database.</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-    /// <returns>A task that returns the opened <see cref="IFolderTable{TKey, TRecord}"/> instance.</returns>
+    /// <returns>A task that returns the opened <see cref="IFolderRecordCollection{TKey, TRecord}"/> instance.</returns>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="path"/> or <paramref name="definition"/> is <see langword="null"/>.
     /// </exception>
@@ -208,19 +208,19 @@ public class FolderDatabase : IDatabase
     /// The current operating system is not Microsoft Windows NT or later.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
-    public static async Task<IFolderTable<TKey, TRecord>> OpenTableAsync<TKey, TRecord>(
+    public static async Task<IFolderRecordCollection<TKey, TRecord>> OpenCollectionAsync<TKey, TRecord>(
         string path,
-        TableDefinition<TKey, TRecord, NoProjection> definition,
+        CollectionDefinition<TKey, TRecord, NoProjection> definition,
         DatabaseOptions? options = null,
         CancellationToken cancellationToken = default)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        return await DatabaseFactory.OpenTableAsync(path, definition, options, cancellationToken);
+        return await DatabaseFactory.OpenCollectionAsync(path, definition, options, cancellationToken);
     }
 
     /// <summary>
-    /// Opens a database as a single indexed table at the specified path.
+    /// Opens a database as a single indexed collection at the specified path.
     /// </summary>
     /// <remarks>
     /// Opening takes longer the first time the database is opened in a directory, or after its index cache was discarded.
@@ -228,13 +228,13 @@ public class FolderDatabase : IDatabase
     /// <param name="path">
     /// The path to the database, specified as a relative or absolute path.
     /// A relative path is interpreted as relative to the current working directory.
-    /// The directory that holds the table is created when missing.
+    /// The directory that holds the collection is created when missing.
     /// </param>
-    /// <param name="definition">The definition that describes and configures the table.</param>
+    /// <param name="definition">The definition that describes and configures the collection.</param>
     /// <param name="options">Options to control the behavior of the database.</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
     /// <returns>
-    /// A task that returns the opened <see cref="IFolderIndexedTable{TKey, TRecord, TProjection}"/> instance.
+    /// A task that returns the opened <see cref="IFolderIndexedRecordCollection{TKey, TRecord, TProjection}"/> instance.
     /// </returns>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="path"/> or <paramref name="definition"/> is <see langword="null"/>.
@@ -295,53 +295,53 @@ public class FolderDatabase : IDatabase
     /// The current operating system is not Microsoft Windows NT or later.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
-    public static async Task<IFolderIndexedTable<TKey, TRecord, TProjection>> OpenIndexedTableAsync<TKey, TRecord, TProjection>(
+    public static async Task<IFolderIndexedRecordCollection<TKey, TRecord, TProjection>> OpenIndexedCollectionAsync<TKey, TRecord, TProjection>(
         string path,
-        TableDefinition<TKey, TRecord, TProjection> definition,
+        CollectionDefinition<TKey, TRecord, TProjection> definition,
         DatabaseOptions? options = null,
         CancellationToken cancellationToken = default)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        return await DatabaseFactory.OpenTableAsync(path, definition, options, cancellationToken);
+        return await DatabaseFactory.OpenCollectionAsync(path, definition, options, cancellationToken);
     }
 
     /// <summary>
-    /// Gets the table that stores <typeparamref name="TRecord"/>.
+    /// Gets the collection that stores <typeparamref name="TRecord"/>.
     /// </summary>
-    /// <typeparam name="TKey">The type of the record id the table was defined with.</typeparam>
-    /// <typeparam name="TRecord">The record type the table stores.</typeparam>
-    /// <returns>The table that stores <typeparamref name="TRecord"/>.</returns>
+    /// <typeparam name="TKey">The type of the record id the collection was defined with.</typeparam>
+    /// <typeparam name="TRecord">The record type the collection stores.</typeparam>
+    /// <returns>The collection that stores <typeparamref name="TRecord"/>.</returns>
     /// <exception cref="ObjectDisposedException">The database has been disposed.</exception>
     /// <exception cref="InvalidOperationException">
-    /// There is no table defined with <typeparamref name="TKey"/> and <typeparamref name="TRecord"/>.
+    /// There is no collection defined with <typeparamref name="TKey"/> and <typeparamref name="TRecord"/>.
     /// </exception>
-    public ITable<TKey, TRecord> Table<TKey, TRecord>()
+    public IRecordCollection<TKey, TRecord> Collection<TKey, TRecord>()
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        return GetTable<TRecord, ITable<TKey, TRecord>>();
+        return GetCollection<TRecord, IRecordCollection<TKey, TRecord>>();
     }
 
     /// <summary>
-    /// Gets the table that stores <typeparamref name="TRecord"/>, together with its projection index.
+    /// Gets the collection that stores <typeparamref name="TRecord"/>, together with its projection index.
     /// </summary>
-    /// <typeparam name="TKey">The type of the record id the table was defined with.</typeparam>
-    /// <typeparam name="TRecord">The record type the table stores.</typeparam>
-    /// <typeparam name="TProjection">The projection type the table was defined with.</typeparam>
+    /// <typeparam name="TKey">The type of the record id the collection was defined with.</typeparam>
+    /// <typeparam name="TRecord">The record type the collection stores.</typeparam>
+    /// <typeparam name="TProjection">The projection type the collection was defined with.</typeparam>
     /// <returns>
-    /// The table that stores <typeparamref name="TRecord"/>, together with its projection index.
+    /// The collection that stores <typeparamref name="TRecord"/>, together with its projection index.
     /// </returns>
     /// <exception cref="ObjectDisposedException">The database has been disposed.</exception>
     /// <exception cref="InvalidOperationException">
-    /// There is no table defined with <typeparamref name="TKey"/>, <typeparamref name="TRecord"/>
+    /// There is no collection defined with <typeparamref name="TKey"/>, <typeparamref name="TRecord"/>
     /// and <typeparamref name="TProjection"/>.
     /// </exception>
-    public IIndexedTable<TKey, TRecord, TProjection> IndexedTable<TKey, TRecord, TProjection>()
+    public IIndexedRecordCollection<TKey, TRecord, TProjection> IndexedCollection<TKey, TRecord, TProjection>()
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        return GetTable<TRecord, IIndexedTable<TKey, TRecord, TProjection>>();
+        return GetCollection<TRecord, IIndexedRecordCollection<TKey, TRecord, TProjection>>();
     }
 
     /// <inheritdoc/>
@@ -349,10 +349,10 @@ public class FolderDatabase : IDatabase
     {
         ThrowIfDisposed();
 
-        foreach (var tableEngine in _tableEnginesByType.Values)
+        foreach (var collectionEngine in _collectionEnginesByType.Values)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await tableEngine.FlushAsync(cancellationToken);
+            await collectionEngine.FlushAsync(cancellationToken);
         }
     }
 
@@ -371,8 +371,8 @@ public class FolderDatabase : IDatabase
 
         DisposeHelper.SafeDispose(_rootPathWatcher);
 
-        foreach (var tableEngine in _tableEnginesByType.Values)
-            await DisposeHelper.SafeDispose(tableEngine);
+        foreach (var collectionEngine in _collectionEnginesByType.Values)
+            await DisposeHelper.SafeDispose(collectionEngine);
 
         _resources.Dispose();
 
@@ -386,32 +386,32 @@ public class FolderDatabase : IDatabase
 
     /// <exception cref="ObjectDisposedException">The database has been disposed.</exception>
     /// <exception cref="InvalidOperationException">
-    /// There is no table for <typeparamref name="TRecord"/>.
+    /// There is no collection for <typeparamref name="TRecord"/>.
     ///
     /// -or-
     ///
-    /// The table cannot be accessed as <typeparamref name="TTable"/>.
+    /// The collection cannot be accessed as <typeparamref name="TCollection"/>.
     /// </exception>
-    private TTable GetTable<TRecord, TTable>()
-        where TTable : class
+    private TCollection GetCollection<TRecord, TCollection>()
+        where TCollection : class
     {
         ThrowIfDisposed();
 
-        if (!_tableEnginesByType.TryGetValue(typeof(TRecord), out var tableEngine))
+        if (!_collectionEnginesByType.TryGetValue(typeof(TRecord), out var collectionEngine))
         {
             throw new InvalidOperationException(
-                $"No table is defined for record type '{typeof(TRecord)}'. " +
-                $"Pass its table definition to {nameof(FolderDatabase)}.{nameof(OpenAsync)}.");
+                $"No collection is defined for record type '{typeof(TRecord)}'. " +
+                $"Pass its collection definition to {nameof(FolderDatabase)}.{nameof(OpenAsync)}.");
         }
 
-        if (tableEngine is not TTable table)
+        if (collectionEngine is not TCollection collection)
         {
             throw new InvalidOperationException(
-                $"The table for record type '{typeof(TRecord)}' cannot be accessed as '{typeof(TTable)}'. " +
-                "The requested key or projection type differs from the one the table was defined with.");
+                $"The collection for record type '{typeof(TRecord)}' cannot be accessed as '{typeof(TCollection)}'. " +
+                "The requested key or projection type differs from the one the collection was defined with.");
         }
 
-        return table;
+        return collection;
     }
 
     private void HandleRootDirectoryChange(string path)
@@ -420,17 +420,17 @@ public class FolderDatabase : IDatabase
         if (string.IsNullOrWhiteSpace(directoryName))
             return;
 
-        if (_tableEnginesByDirectoryName.TryGetValue(directoryName, out var tableEngine))
+        if (_collectionEnginesByDirectoryName.TryGetValue(directoryName, out var collectionEngine))
         {
-            tableEngine.RequestDirectoryReconcile();
+            collectionEngine.RequestDirectoryReconcile();
         }
     }
 
     private void RequestAllDirectoriesReconcile()
     {
-        foreach (var tableEngine in _tableEnginesByDirectoryName.Values)
+        foreach (var collectionEngine in _collectionEnginesByDirectoryName.Values)
         {
-            tableEngine.RequestDirectoryReconcile();
+            collectionEngine.RequestDirectoryReconcile();
         }
     }
 }

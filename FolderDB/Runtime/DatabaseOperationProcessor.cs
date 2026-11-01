@@ -18,9 +18,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace FolderDB.Runtime;
 
 internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
-    string tablePath,
-    TableContext<TKey, TRecord, TProjection> context,
-    TableIndex<TKey, TRecord, TProjection> index,
+    string collectionPath,
+    CollectionContext<TKey, TRecord, TProjection> context,
+    CollectionIndex<TKey, TRecord, TProjection> index,
     RecordStore<TKey, TRecord> store,
     int maxFileNameReserveAttempts,
     FileReconciler<TKey, TRecord, TProjection> fileReconciler,
@@ -59,7 +59,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
     ///
     /// -or-
     ///
@@ -115,7 +115,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         }
 
         var fileName = recordState.CurrentFileName;
-        var filePath = Path.Combine(tablePath, fileName);
+        var filePath = Path.Combine(collectionPath, fileName);
         var readResult = await store.ReadAsync(filePath, cancellationToken);
 
         var retryDecision = await fileReconciler.ContinueAfterReadAsync(
@@ -164,7 +164,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
     ///
     /// -or-
     ///
@@ -196,7 +196,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         }
 
         var fileName = recordState.CurrentFileName;
-        var currentPath = Path.Combine(tablePath, fileName);
+        var currentPath = Path.Combine(collectionPath, fileName);
         var writeResult = await store.WriteAsync(currentPath, record, cancellationToken);
 
         if (writeResult.Error != null)
@@ -246,7 +246,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var filePath = Path.Combine(tablePath, fileName);
+            var filePath = Path.Combine(collectionPath, fileName);
             var deleteResult = await store.DeleteAsync(filePath, cancellationToken);
             if (deleteResult.Error != null)
             {
@@ -291,7 +291,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     }
 
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
     ///
     /// -or-
     ///
@@ -329,7 +329,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
 
             try
             {
-                var reservedPath = Path.Combine(tablePath, reservedFileName);
+                var reservedPath = Path.Combine(collectionPath, reservedFileName);
 
                 // This can overwrite a disk-only file with the same name, which is acceptable because
                 // the file system is not lockable by FolderDB and can change at any time.
@@ -373,7 +373,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     }
 
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw while
+    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw while
     /// starting generation.
     /// </exception>
     private IEnumerator<string> CreateFileNameIterator(TRecord record)
@@ -390,7 +390,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     }
 
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw while
+    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw while
     /// producing the next candidate.
     /// </exception>
     private static bool MoveNextFileNameCandidate(TKey id, IEnumerator<string> iterator)

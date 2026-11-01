@@ -17,30 +17,30 @@ namespace FolderDB.Tests;
 
 public class RecordScopedIndexEngineTests : IDisposable
 {
-    private static readonly TableContext<string, TestRecord, string> _stringTable =
-        TestTableContext.Create<string, TestRecord, string>(
+    private static readonly CollectionContext<string, TestRecord, string> _stringCollection =
+        TestCollectionContext.Create<string, TestRecord, string>(
             static value => value.Value,
             static record => [record.Id],
             StringComparer.Ordinal,
             StringComparer.Ordinal,
             new RecordCodec<string, TestRecord>(
                 new RecordSchemaBuilder().StartWith(1, TestsJsonContext.Default.TestRecord).Build()));
-    private static readonly ITableIndexPersistence<string, string> _stringPersistence =
-        TestTableContext.CreateJsonIndexPersistence(
+    private static readonly ICollectionIndexPersistence<string, string> _stringPersistence =
+        TestCollectionContext.CreateJsonIndexPersistence(
             TestsJsonContext.Default.String,
             TestsJsonContext.Default.String,
             StringComparer.Ordinal);
 
-    private static readonly TableContext<string, TestRecord, NoProjection> _noProjectionTable =
-        TestTableContext.Create<string, TestRecord, NoProjection>(
+    private static readonly CollectionContext<string, TestRecord, NoProjection> _noProjectionCollection =
+        TestCollectionContext.Create<string, TestRecord, NoProjection>(
             static _ => default,
             static record => [record.Id],
             StringComparer.Ordinal,
             StringComparer.Ordinal,
             new RecordCodec<string, TestRecord>(
                 new RecordSchemaBuilder().StartWith(1, TestsJsonContext.Default.TestRecord).Build()));
-    private static readonly ITableIndexPersistence<string, NoProjection> _noProjectionPersistence =
-        TestTableContext.CreateJsonIndexPersistence(
+    private static readonly ICollectionIndexPersistence<string, NoProjection> _noProjectionPersistence =
+        TestCollectionContext.CreateJsonIndexPersistence(
             TestsJsonContext.Default.String,
             TestsJsonContext.Default.NoProjection,
             StringComparer.Ordinal);
@@ -178,7 +178,7 @@ public class RecordScopedIndexEngineTests : IDisposable
     {
         await using var engine = await RecordScopedIndexEngine<string, TestRecord, string>.StartAsync(
             _path,
-            _stringTable,
+            _stringCollection,
             _stringPersistence,
             autoSaveEnabled: false,
             cancellationToken: TestContext.Current.CancellationToken);
@@ -210,7 +210,7 @@ public class RecordScopedIndexEngineTests : IDisposable
     {
         await using var engine = await RecordScopedIndexEngine<string, TestRecord, string>.StartAsync(
             _path,
-            _stringTable,
+            _stringCollection,
             _stringPersistence,
             autoSaveEnabled: false,
             cancellationToken: TestContext.Current.CancellationToken);
@@ -251,7 +251,7 @@ public class RecordScopedIndexEngineTests : IDisposable
         await File.WriteAllTextAsync(_path, JsonSerializer.Serialize(dto), TestContext.Current.CancellationToken);
         await using var engine = await RecordScopedIndexEngine<string, TestRecord, string>.StartAsync(
             _path,
-            _stringTable,
+            _stringCollection,
             _stringPersistence,
             autoSaveEnabled: false,
             cancellationToken: TestContext.Current.CancellationToken);
@@ -273,7 +273,7 @@ public class RecordScopedIndexEngineTests : IDisposable
             "access denied",
             unchecked((int)0x80070005));
         var fingerprint = new FileFingerprint(DateTime.UnixEpoch, 1, true);
-        var state = new TableIndexState<string, string>(StringComparer.Ordinal);
+        var state = new CollectionIndexState<string, string>(StringComparer.Ordinal);
         var record = new RecordIndexState<string, string> { Id = "id-1" };
         var file = new FileIndexState<string, string>
         {
@@ -291,7 +291,7 @@ public class RecordScopedIndexEngineTests : IDisposable
         await File.WriteAllBytesAsync(_path, _stringPersistence.SerializeToBytes(state), TestContext.Current.CancellationToken);
         await using var engine = await RecordScopedIndexEngine<string, TestRecord, string>.StartAsync(
             _path,
-            _stringTable,
+            _stringCollection,
             _stringPersistence,
             autoSaveEnabled: false,
             cancellationToken: TestContext.Current.CancellationToken);
@@ -306,7 +306,7 @@ public class RecordScopedIndexEngineTests : IDisposable
     private Task<RecordScopedIndexEngine<string, TestRecord, NoProjection>> CreateNoProjectionEngineAsync() =>
         RecordScopedIndexEngine<string, TestRecord, NoProjection>.StartAsync(
             _path,
-            _noProjectionTable,
+            _noProjectionCollection,
             _noProjectionPersistence,
             autoSaveEnabled: false);
 

@@ -8,9 +8,9 @@ using FolderDB.Runtime;
 
 namespace FolderDB.Indexing;
 
-public class TableIndex<TKey, TRecord, TProjection>(
+public class CollectionIndex<TKey, TRecord, TProjection>(
     IRecordScopedIndexEngine<TKey, TRecord, TProjection> engine,
-    TableContext<TKey, TRecord, TProjection> context) : IAsyncDisposable
+    CollectionContext<TKey, TRecord, TProjection> context) : IAsyncDisposable
     where TKey : notnull
 {
     public IReadOnlyDictionary<TKey, IReadOnlyRecordIndexState<TKey, TProjection>> Records => engine.Records;

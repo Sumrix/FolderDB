@@ -18,14 +18,14 @@ using Nito.AsyncEx;
 
 namespace FolderDB.Tests;
 
-public class TableDefinitionBuilderTests
+public class CollectionDefinitionBuilderTests
 {
     [Fact]
     public void Build_WithoutProjection_UsesDefaultsAndConfiguredCodec()
     {
         var codec = new FakeRecordCodec();
 
-        var blueprint = TableDefinitionBuilder.Create<string, TestRecord>()
+        var blueprint = CollectionDefinitionBuilder.Create<string, TestRecord>()
             .UseRecordCodec(codec)
             .WithoutProjection()
             .UseIndexEngine(_ => new FakeIndexEngine<string, TestRecord, NoProjection>())
@@ -43,7 +43,7 @@ public class TableDefinitionBuilderTests
         var keyComparer = Comparer<string>.Create((x, y) => string.CompareOrdinal(y, x));
         var keyEqualityComparer = StringComparer.OrdinalIgnoreCase;
 
-        var blueprint = TableDefinitionBuilder.Create<string, TestRecord>()
+        var blueprint = CollectionDefinitionBuilder.Create<string, TestRecord>()
             .WithName("Users")
             .WithKeyComparer(keyComparer)
             .WithKeyEqualityComparer(keyEqualityComparer)
@@ -62,7 +62,7 @@ public class TableDefinitionBuilderTests
     [Fact]
     public async Task CreateDefault_WithoutProjection_UsesJsonDefaultsForNonVersionedRecord()
     {
-        var definition = TableDefinitionBuilder.CreateDefault<string, PlainTestRecord>(
+        var definition = CollectionDefinitionBuilder.CreateDefault<string, PlainTestRecord>(
             jsonOptions: TestsJsonContext.Default.Options);
         var record = new PlainTestRecord("id-1", "value");
         var codec = definition.RecordCodecFactory(new RecordCodecContext(NullLoggerFactory.Instance));
@@ -87,7 +87,7 @@ public class TableDefinitionBuilderTests
         var keyComparer = Comparer<string>.Create((x, y) => string.CompareOrdinal(y, x));
         var keyEqualityComparer = StringComparer.OrdinalIgnoreCase;
         var jsonOptions = new JsonSerializerOptions(TestsJsonContext.Default.Options);
-        var options = new TableOptions<string, PlainTestRecord>
+        var options = new CollectionOptions<string, PlainTestRecord>
         {
             Name = "Users",
             KeyComparer = keyComparer,
@@ -95,10 +95,10 @@ public class TableDefinitionBuilderTests
             FileNameGenerator = record => new[] { $"{record.Id}-{record.Value}" }
         };
 
-        var definition = TableDefinitionBuilder.CreateDefault<string, PlainTestRecord, string>(
+        var definition = CollectionDefinitionBuilder.CreateDefault<string, PlainTestRecord, string>(
             createProjection: record => record.Value,
             jsonOptions: jsonOptions,
-            tableOptions: options);
+            collectionOptions: options);
 
         Assert.Equal("Users", definition.Name);
         Assert.Same(keyComparer, definition.KeyComparer);
@@ -114,15 +114,15 @@ public class TableDefinitionBuilderTests
     {
         var expectedPersistence = new FakeIndexPersistence<string, int>();
 
-        var blueprint = TableDefinitionBuilder.Create<string, TestRecord>()
+        var blueprint = CollectionDefinitionBuilder.Create<string, TestRecord>()
             .UseRecordCodec(new FakeRecordCodec())
             .WithProjection(record => record.Value.Length)
             .UseIndexPersistence(_ => expectedPersistence)
             .Build();
 
         Assert.Equal(5, blueprint.CreateProjection(new TestRecord("id-1", 1, "value")));
-        var table = CreateTableContext(blueprint);
-        var persistenceContext = new TableIndexPersistenceContext<string, TestRecord, int>(table, NullLoggerFactory.Instance);
+        var collection = CreateCollectionContext(blueprint);
+        var persistenceContext = new CollectionIndexPersistenceContext<string, TestRecord, int>(collection, NullLoggerFactory.Instance);
 
         Assert.Same(expectedPersistence, blueprint.IndexPersistenceFactory!(persistenceContext));
         Assert.Null(blueprint.IndexEngineFactory);
@@ -134,16 +134,16 @@ public class TableDefinitionBuilderTests
     {
         var expectedEngine = new FakeIndexEngine<string, TestRecord, string>();
 
-        var blueprint = TableDefinitionBuilder.Create<string, TestRecord>()
+        var blueprint = CollectionDefinitionBuilder.Create<string, TestRecord>()
             .UseRecordCodec(new FakeRecordCodec())
             .WithProjection(record => record.Value)
             .UseIndexEngine(_ => expectedEngine)
             .Build();
 
-        var table = CreateTableContext(blueprint);
+        var collection = CreateCollectionContext(blueprint);
         var indexContext = new RecordScopedIndexEngineContext<string, TestRecord, string>
         {
-            Table = table,
+            Collection = collection,
             DatabaseOptions = CreateDatabaseOptions(),
             IndexFilePath = "index.bin",
             CancellationToken = CancellationToken.None,
@@ -161,10 +161,10 @@ public class TableDefinitionBuilderTests
         };
     }
 
-    private static TableContext<string, TestRecord, TProjection> CreateTableContext<TProjection>(
-        TableDefinition<string, TestRecord, TProjection> definition)
+    private static CollectionContext<string, TestRecord, TProjection> CreateCollectionContext<TProjection>(
+        CollectionDefinition<string, TestRecord, TProjection> definition)
     {
-        return new TableContext<string, TestRecord, TProjection>
+        return new CollectionContext<string, TestRecord, TProjection>
         {
             Name = definition.Name,
             KeyComparer = definition.KeyComparer,
@@ -190,15 +190,15 @@ public class TableDefinitionBuilderTests
         }
     }
 
-    private sealed class FakeIndexPersistence<TKey, TProjection> : ITableIndexPersistence<TKey, TProjection>
+    private sealed class FakeIndexPersistence<TKey, TProjection> : ICollectionIndexPersistence<TKey, TProjection>
         where TKey : notnull
     {
-        public Task<TableIndexState<TKey, TProjection>?> LoadIfExistsAsync(string path, CancellationToken cancellationToken = default)
+        public Task<CollectionIndexState<TKey, TProjection>?> LoadIfExistsAsync(string path, CancellationToken cancellationToken = default)
         {
             throw new System.NotSupportedException();
         }
 
-        public byte[] SerializeToBytes(TableIndexState<TKey, TProjection> state)
+        public byte[] SerializeToBytes(CollectionIndexState<TKey, TProjection> state)
         {
             throw new System.NotSupportedException();
         }
@@ -208,7 +208,7 @@ public class TableDefinitionBuilderTests
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        public TableContext<TKey, TRecord, TProjection> Table { get; } = new()
+        public CollectionContext<TKey, TRecord, TProjection> Collection { get; } = new()
         {
             Name = "fake",
             KeyComparer = Comparer<TKey>.Default,

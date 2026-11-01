@@ -5,22 +5,22 @@ using Microsoft.Extensions.Logging;
 
 namespace FolderDB.Tests;
 
-public class TableLoggerTests
+public class CollectionLoggerTests
 {
     [Fact]
-    public void BeginMethodScope_WhenLoggerCreatedViaGenericFactory_WrapsMethodScopeIntoTableMethodScope()
+    public void BeginMethodScope_WhenLoggerCreatedViaGenericFactory_WrapsMethodScopeIntoCollectionMethodScope()
     {
         var innerFactory = new CaptureLoggerFactory();
-        var loggerFactory = innerFactory.CreateTableScopedLoggerFactory("users");
-        var logger = loggerFactory.CreateLogger<TableLoggerTests>();
+        var loggerFactory = innerFactory.CreateCollectionScopedLoggerFactory("users");
+        var logger = loggerFactory.CreateLogger<CollectionLoggerTests>();
 
         using var _ = logger.BeginMethodScope();
 
-        var scope = Assert.IsType<TableMethodScope>(innerFactory.Logger.LastScope);
+        var scope = Assert.IsType<CollectionMethodScope>(innerFactory.Logger.LastScope);
 
         Assert.Equal(2, scope.Count);
-        Assert.Equal(new KeyValuePair<string, object?>("Table", "users"), scope[0]);
-        Assert.Equal(new KeyValuePair<string, object?>("Method", nameof(BeginMethodScope_WhenLoggerCreatedViaGenericFactory_WrapsMethodScopeIntoTableMethodScope)), scope[1]);
+        Assert.Equal(new KeyValuePair<string, object?>("Collection", "users"), scope[0]);
+        Assert.Equal(new KeyValuePair<string, object?>("Method", nameof(BeginMethodScope_WhenLoggerCreatedViaGenericFactory_WrapsMethodScopeIntoCollectionMethodScope)), scope[1]);
     }
 
     private sealed class CaptureLoggerFactory : ILoggerFactory

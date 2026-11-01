@@ -45,22 +45,22 @@ internal sealed class DatabaseFactory
     }
 
     /// <exception cref="ArgumentNullException">
-    /// <paramref name="path"/> or <paramref name="tableDefinitions"/> is <see langword="null"/>.
+    /// <paramref name="path"/> or <paramref name="collectionDefinitions"/> is <see langword="null"/>.
     ///
     /// -or-
     ///
-    /// <paramref name="tableDefinitions"/> contains a <see langword="null"/> definition.
+    /// <paramref name="collectionDefinitions"/> contains a <see langword="null"/> definition.
     /// </exception>
     /// <exception cref="ArgumentException">
-    /// <paramref name="tableDefinitions"/> contains a definition with an invalid name, or two
+    /// <paramref name="collectionDefinitions"/> contains a definition with an invalid name, or two
     /// definitions that collide by name or by record type.
     /// </exception>
     /// <exception cref="InvalidOperationException">
-    /// <paramref name="tableDefinitions"/> contains a definition with a <see langword="null"/> value.
+    /// <paramref name="collectionDefinitions"/> contains a definition with a <see langword="null"/> value.
     ///
     /// -or-
     ///
-    /// A factory configured in <paramref name="options"/> or on <paramref name="tableDefinitions"/> returned
+    /// A factory configured in <paramref name="options"/> or on <paramref name="collectionDefinitions"/> returned
     /// <see langword="null"/>.
     ///
     /// -or-
@@ -77,41 +77,41 @@ internal sealed class DatabaseFactory
     /// </remarks>
     public static async Task<FolderDatabase> OpenDatabaseAsync(
         string path,
-        IReadOnlyList<ITableDefinition> tableDefinitions,
+        IReadOnlyList<ICollectionDefinition> collectionDefinitions,
         DatabaseOptions? options,
         CancellationToken cancellationToken)
     {
         // Validation
-        ArgumentNullException.ThrowIfNull(tableDefinitions);
+        ArgumentNullException.ThrowIfNull(collectionDefinitions);
 
-        var enginesByType = new Dictionary<Type, ITableEngine>(tableDefinitions.Count);
-        var enginesByDirectoryName = new Dictionary<string, ITableEngine>(
-            tableDefinitions.Count, PathHelper.OSDependedPathComparer);
-        var directoryNames = new string[tableDefinitions.Count];
+        var enginesByType = new Dictionary<Type, ICollectionEngine>(collectionDefinitions.Count);
+        var enginesByDirectoryName = new Dictionary<string, ICollectionEngine>(
+            collectionDefinitions.Count, PathHelper.OSDependedPathComparer);
+        var directoryNames = new string[collectionDefinitions.Count];
 
-        for (var i = 0; i < tableDefinitions.Count; i++)
+        for (var i = 0; i < collectionDefinitions.Count; i++)
         {
-            var tableDefinition = tableDefinitions[i];
-            if (tableDefinition is null)
+            var collectionDefinition = collectionDefinitions[i];
+            if (collectionDefinition is null)
             {
                 throw new ArgumentNullException(
-                    nameof(tableDefinitions),
-                    $"The table definition at index {i} is null.");
+                    nameof(collectionDefinitions),
+                    $"The collection definition at index {i} is null.");
             }
 
-            var directoryName = GetTableDirectoryName(tableDefinition, nameof(tableDefinitions));
+            var directoryName = GetCollectionDirectoryName(collectionDefinition, nameof(collectionDefinitions));
 
-            if (!enginesByType.TryAdd(tableDefinition.RecordType, NullEngine.Instance))
+            if (!enginesByType.TryAdd(collectionDefinition.RecordType, NullEngine.Instance))
             {
                 throw new ArgumentException(
-                    $"Multiple tables with the same record type detected: '{tableDefinition.RecordType.FullName}'.",
-                    nameof(tableDefinitions));
+                    $"Multiple collections with the same record type detected: '{collectionDefinition.RecordType.FullName}'.",
+                    nameof(collectionDefinitions));
             }
             if (!enginesByDirectoryName.TryAdd(directoryName, NullEngine.Instance))
             {
                 throw new ArgumentException(
-                    $"Directory name collision detected after sanitizing table names: '{directoryName}'.",
-                    nameof(tableDefinitions));
+                    $"Directory name collision detected after sanitizing collection names: '{directoryName}'.",
+                    nameof(collectionDefinitions));
             }
 
             directoryNames[i] = directoryName;
@@ -130,19 +130,19 @@ internal sealed class DatabaseFactory
         {
             factory.CreateDirectories();
 
-            for (var i = 0; i < tableDefinitions.Count; i++)
+            for (var i = 0; i < collectionDefinitions.Count; i++)
             {
-                var tableDefinition = tableDefinitions[i];
+                var collectionDefinition = collectionDefinitions[i];
                 var directoryName = directoryNames[i];
 
-                var tableEngine = await factory.StartEngineAsync(
-                    tableDefinition,
+                var collectionEngine = await factory.StartEngineAsync(
+                    collectionDefinition,
                     Path.Combine(factory.RootPath, directoryName),
                     factory.GetIndexFilePath(directoryName),
                     cancellationToken);
 
-                enginesByType[tableDefinition.RecordType] = tableEngine;
-                enginesByDirectoryName[directoryName] = tableEngine;
+                enginesByType[collectionDefinition.RecordType] = collectionEngine;
+                enginesByDirectoryName[directoryName] = collectionEngine;
             }
 
             rootPathWatcher = new PathWatcher(
@@ -165,8 +165,8 @@ internal sealed class DatabaseFactory
             logger.LogError(ex, "Failed to open: path=\"{RootPath}\"", factory.RootPath);
 
             DisposeHelper.SafeDispose(rootPathWatcher);
-            foreach (var tableEngine in enginesByType.Values)
-                await DisposeHelper.SafeDispose(tableEngine);
+            foreach (var collectionEngine in enginesByType.Values)
+                await DisposeHelper.SafeDispose(collectionEngine);
             factory._resources.Dispose();
 
             throw;
@@ -199,9 +199,9 @@ internal sealed class DatabaseFactory
     /// <see cref="PathWatcher(string, string, ILogger{PathWatcher})"/>,
     /// <see cref="PathWatcher.EnableRaisingEvents"/>.
     /// </remarks>
-    public static async Task<FolderIndexedTable<TKey, TRecord, TProjection>> OpenTableAsync<TKey, TRecord, TProjection>(
+    public static async Task<FolderIndexedRecordCollection<TKey, TRecord, TProjection>> OpenCollectionAsync<TKey, TRecord, TProjection>(
         string path,
-        TableDefinition<TKey, TRecord, TProjection> definition,
+        CollectionDefinition<TKey, TRecord, TProjection> definition,
         DatabaseOptions? options,
         CancellationToken cancellationToken)
         where TRecord : class, IRecord<TKey>
@@ -209,7 +209,7 @@ internal sealed class DatabaseFactory
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        var directoryName = GetTableDirectoryName(definition, nameof(definition));
+        var directoryName = GetCollectionDirectoryName(definition, nameof(definition));
 
         var factory = new DatabaseFactory(path, options);
         var logger = factory.LoggerFactory.CreateLogger<DatabaseFactory>();
@@ -218,34 +218,34 @@ internal sealed class DatabaseFactory
 
         logger.LogTrace("Opening: path=\"{RootPath}\"", factory.RootPath);
 
-        TableEngine<TKey, TRecord, TProjection>? tableEngine = null;
+        CollectionEngine<TKey, TRecord, TProjection>? collectionEngine = null;
 
         try
         {
             factory.CreateDirectories();
 
-            var tablePath = Path.Combine(factory.RootPath, directoryName);
+            var collectionPath = Path.Combine(factory.RootPath, directoryName);
 
-            tableEngine = await factory.StartEngineAsync(
+            collectionEngine = await factory.StartEngineAsync(
                 definition,
-                tablePath,
+                collectionPath,
                 factory.GetIndexFilePath(directoryName),
                 cancellationToken);
 
-            var table = new FolderIndexedTable<TKey, TRecord, TProjection>(
+            var collection = new FolderIndexedRecordCollection<TKey, TRecord, TProjection>(
                 factory.RootPath,
                 factory._resources,
-                tableEngine);
+                collectionEngine);
 
             logger.LogDebug("Opened: path=\"{RootPath}\"", factory.RootPath);
 
-            return table;
+            return collection;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to open: path=\"{RootPath}\"", factory.RootPath);
 
-            await DisposeHelper.SafeDispose(tableEngine);
+            await DisposeHelper.SafeDispose(collectionEngine);
             factory._resources.Dispose();
 
             throw;
@@ -259,21 +259,21 @@ internal sealed class DatabaseFactory
     ///
     /// The definition returned a name that sanitizes to the reserved index directory name.
     /// </exception>
-    private static string GetTableDirectoryName(ITableDefinition tableDefinition, string paramName)
+    private static string GetCollectionDirectoryName(ICollectionDefinition collectionDefinition, string paramName)
     {
-        if (string.IsNullOrEmpty(tableDefinition.Name))
+        if (string.IsNullOrEmpty(collectionDefinition.Name))
         {
             throw new ArgumentException(
-                $"The definition '{tableDefinition.GetType().FullName}' returned a null or empty table name.",
+                $"The definition '{collectionDefinition.GetType().FullName}' returned a null or empty collection name.",
                 paramName);
         }
 
-        var directoryName = PathHelper.SanitizeFileName(tableDefinition.Name);
+        var directoryName = PathHelper.SanitizeFileName(collectionDefinition.Name);
 
         if (PathHelper.OSDependedPathComparer.Equals(directoryName, IndexDirectoryName))
         {
             throw new ArgumentException(
-                $"The table name '{tableDefinition.Name}' collides with the reserved index directory '{IndexDirectoryName}'.",
+                $"The collection name '{collectionDefinition.Name}' collides with the reserved index directory '{IndexDirectoryName}'.",
                 paramName);
         }
 
@@ -317,28 +317,28 @@ internal sealed class DatabaseFactory
     /// <see cref="PathWatcher(string, string, ILogger{PathWatcher})"/>,
     /// <see cref="PathWatcher.EnableRaisingEvents"/>.
     /// </remarks>
-    private async Task<ITableEngine> StartEngineAsync(
-        ITableDefinition tableDefinition,
-        string tablePath,
+    private async Task<ICollectionEngine> StartEngineAsync(
+        ICollectionDefinition collectionDefinition,
+        string collectionPath,
         string indexFilePath,
         CancellationToken cancellationToken)
     {
-        var tableEngine = await tableDefinition.StartEngineAsync(
-            tablePath,
+        var collectionEngine = await collectionDefinition.StartEngineAsync(
+            collectionPath,
             indexFilePath,
             _resources.FileStore,
             _resources.RetryScheduler,
             _options,
-            LoggerFactory.CreateTableScopedLoggerFactory(tableDefinition.Name),
+            LoggerFactory.CreateCollectionScopedLoggerFactory(collectionDefinition.Name),
             cancellationToken);
 
-        if (tableEngine is null)
+        if (collectionEngine is null)
         {
             throw new InvalidOperationException(
-                $"The definition of table '{tableDefinition.Name}' returned no table engine.");
+                $"The definition of collection '{collectionDefinition.Name}' returned no collection engine.");
         }
 
-        return tableEngine;
+        return collectionEngine;
     }
 
     /// <exception cref="InvalidOperationException">
@@ -359,26 +359,26 @@ internal sealed class DatabaseFactory
     /// <see cref="PathWatcher(string, string, ILogger{PathWatcher})"/>,
     /// <see cref="PathWatcher.EnableRaisingEvents"/>.
     /// </remarks>
-    private Task<TableEngine<TKey, TRecord, TProjection>> StartEngineAsync<TKey, TRecord, TProjection>(
-        TableDefinition<TKey, TRecord, TProjection> tableDefinition,
-        string tablePath,
+    private Task<CollectionEngine<TKey, TRecord, TProjection>> StartEngineAsync<TKey, TRecord, TProjection>(
+        CollectionDefinition<TKey, TRecord, TProjection> collectionDefinition,
+        string collectionPath,
         string indexFilePath,
         CancellationToken cancellationToken)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        // The non-generic overload gets this from TableDefinition.StartEngineAsync; this one reaches
+        // The non-generic overload gets this from CollectionDefinition.StartEngineAsync; this one reaches
         // the engine directly, so it has to run the check itself.
-        tableDefinition.Validate();
+        collectionDefinition.Validate();
 
-        return TableEngine<TKey, TRecord, TProjection>.StartAsync(
-            tablePath,
+        return CollectionEngine<TKey, TRecord, TProjection>.StartAsync(
+            collectionPath,
             indexFilePath,
-            tableDefinition,
+            collectionDefinition,
             _resources.FileStore,
             _resources.RetryScheduler,
             _options,
-            LoggerFactory.CreateTableScopedLoggerFactory(tableDefinition.Name),
+            LoggerFactory.CreateCollectionScopedLoggerFactory(collectionDefinition.Name),
             cancellationToken);
     }
 
@@ -415,7 +415,7 @@ internal sealed class DatabaseFactory
         }
     }
 
-    private sealed class NullEngine : ITableEngine
+    private sealed class NullEngine : ICollectionEngine
     {
         public static readonly NullEngine Instance = new();
 

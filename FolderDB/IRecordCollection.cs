@@ -7,11 +7,11 @@ using FolderDB.Infrastructure.Exceptions;
 namespace FolderDB;
 
 /// <summary>
-/// Represents a table-like API over file-backed records.
+/// Represents a collection-like API over file-backed records.
 /// </summary>
 /// <typeparam name="TKey">The type of the record id.</typeparam>
-/// <typeparam name="TRecord">The record type stored in the table.</typeparam>
-public interface ITable<in TKey, TRecord>
+/// <typeparam name="TRecord">The record type stored in the collection.</typeparam>
+public interface IRecordCollection<in TKey, TRecord>
     where TRecord : IRecord<TKey>
 {
     /// <summary>
@@ -50,7 +50,7 @@ public interface ITable<in TKey, TRecord>
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
     ///
     /// -or-
     ///
@@ -128,7 +128,7 @@ public interface ITable<in TKey, TRecord>
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="TableOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
     ///
     /// -or-
     ///

@@ -10,7 +10,7 @@ using Nito.AsyncEx;
 namespace FolderDB.Indexing;
 
 /// <summary>
-/// Defines low-level operations over the in-memory table index.
+/// Defines low-level operations over the in-memory collection index.
 /// Mutating operations are expected to be called from index scopes while the related record locks are held.
 /// </summary>
 public interface IRecordScopedIndexEngine<TKey, in TRecord, TProjection> : IAsyncDisposable

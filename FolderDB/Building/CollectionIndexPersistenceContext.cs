@@ -3,12 +3,12 @@ using Microsoft.Extensions.Logging;
 
 namespace FolderDB.Building;
 
-public sealed class TableIndexPersistenceContext<TKey, TRecord, TProjection>(
-    TableContext<TKey, TRecord, TProjection> table,
+public sealed class CollectionIndexPersistenceContext<TKey, TRecord, TProjection>(
+    CollectionContext<TKey, TRecord, TProjection> collection,
     ILoggerFactory loggerFactory)
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
 {
-    public TableContext<TKey, TRecord, TProjection> Table { get; } = table;
+    public CollectionContext<TKey, TRecord, TProjection> Collection { get; } = collection;
     public ILoggerFactory LoggerFactory { get; } = loggerFactory;
 }

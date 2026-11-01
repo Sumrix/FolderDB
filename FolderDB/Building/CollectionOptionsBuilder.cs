@@ -3,14 +3,14 @@ using System.Collections.Generic;
 
 namespace FolderDB.Building;
 
-public abstract class TableOptionsBuilder<TKey, TRecord, TBuilder>
+public abstract class CollectionOptionsBuilder<TKey, TRecord, TBuilder>
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
-    where TBuilder : TableOptionsBuilder<TKey, TRecord, TBuilder>
+    where TBuilder : CollectionOptionsBuilder<TKey, TRecord, TBuilder>
 {
-    private protected TableOptions<TKey, TRecord> Options { get; }
+    private protected CollectionOptions<TKey, TRecord> Options { get; }
 
-    private protected TableOptionsBuilder(TableOptions<TKey, TRecord> options)
+    private protected CollectionOptionsBuilder(CollectionOptions<TKey, TRecord> options)
     {
         Options = options;
     }

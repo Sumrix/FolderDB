@@ -2,14 +2,14 @@
 
 FolderDB is a local-first file-system database for .NET.
 
-It is built around a simple idea: the file system itself should be a user-friendly API for the database. A table is a folder, a record is a file, and the data remains readable, editable, movable, and inspectable with ordinary operating system tools.
+It is built around a simple idea: the file system itself should be a user-friendly API for the database. A collection is a folder, a record is a file, and the data remains readable, editable, movable, and inspectable with ordinary operating system tools.
 
 ## Features
 
 FolderDB:
 
 - treats files as database records;
-- exposes a table-like API with primary keys;
+- exposes a database-table-like API with primary keys;
 - lets users create, edit, rename, move, and delete records directly through the file system;
 - keeps records readable and inspectable with ordinary tools;
 - handles delayed file-system watcher events and recovery scans;
@@ -23,22 +23,22 @@ Clone the repository and reference the FolderDB project directly. A NuGet packag
 ```csharp
 using FolderDB;
 
-var users = TableDefinitionBuilder.CreateDefault<string, User>();
+var users = CollectionDefinitionBuilder.CreateDefault<string, User>();
 
 await using var db = await FolderDatabase.OpenAsync(
     path: "data",
-    tableDefinitions: [users]);
+    collectionDefinitions: [users]);
 
-var table = db.Table<string, User>();
+var collection = db.Collection<string, User>();
 
-await table.UpsertAsync(new User(
+await collection.UpsertAsync(new User(
     Id: "alice",
     DisplayName: "Alice",
     Email: "alice@example.com"));
 
-User? alice = await table.GetAsync("alice");
+User? alice = await collection.GetAsync("alice");
 
-await table.DeleteAsync("alice");
+await collection.DeleteAsync("alice");
 
 public sealed record User(
     string Id,
@@ -46,7 +46,7 @@ public sealed record User(
     string Email) : IRecord<string>;
 ```
 
-This creates a database directory, creates a table directory for `User`, writes a user record as a file, reads it back through the table API, and then deletes it.
+This creates a database directory, creates a collection directory for `User`, writes a user record as a file, reads it back through the collection API, and then deletes it.
 
 ## Who Is It For
 
@@ -60,7 +60,7 @@ User data is sacred. FolderDB treats your files as the source of truth, and the 
 
 Instead of relying on ad-hoc reconciliation logic, FolderDB uses a strict, explicitly modeled decision process. Every important edge case, including missing files, decode errors, ID changes, and I/O races, is handled intentionally.
 
-[Read the Index Reconciliation Rulebook](https://github.com/Sumrix/FolderDB/blob/main/docs/index-reconciliation-rulebook.md) to see the exact decision tables and lock boundaries. Analyze it yourself: no hand-waving, no hidden magic.
+[Read the Index Reconciliation Rulebook](https://github.com/Sumrix/FolderDB/blob/main/docs/index-reconciliation-rulebook.md) to see the exact decision collections and lock boundaries. Analyze it yourself: no hand-waving, no hidden magic.
 
 ## Status
 

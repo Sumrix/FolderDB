@@ -12,19 +12,19 @@ using Microsoft.Extensions.Logging;
 
 namespace FolderDB.Indexing.Persistence;
 
-public class JsonTableIndexPersistence<TKey, TProjection> : ITableIndexPersistence<TKey, TProjection>
+public class JsonCollectionIndexPersistence<TKey, TProjection> : ICollectionIndexPersistence<TKey, TProjection>
     where TKey : notnull
 {
     private readonly JsonTypeInfo<TKey> _keyTypeInfo;
     private readonly JsonTypeInfo<TProjection> _projectionTypeInfo;
     private readonly IEqualityComparer<TKey> _keyEqualityComparer;
-    private readonly ILogger<JsonTableIndexPersistence<TKey, TProjection>> _logger;
+    private readonly ILogger<JsonCollectionIndexPersistence<TKey, TProjection>> _logger;
 
-    public JsonTableIndexPersistence(
+    public JsonCollectionIndexPersistence(
         JsonTypeInfo<TKey> keyTypeInfo,
         JsonTypeInfo<TProjection> projectionTypeInfo,
         IEqualityComparer<TKey> keyEqualityComparer,
-        ILogger<JsonTableIndexPersistence<TKey, TProjection>> logger)
+        ILogger<JsonCollectionIndexPersistence<TKey, TProjection>> logger)
     {
         ArgumentNullException.ThrowIfNull(keyTypeInfo);
         ArgumentNullException.ThrowIfNull(projectionTypeInfo);
@@ -37,7 +37,7 @@ public class JsonTableIndexPersistence<TKey, TProjection> : ITableIndexPersisten
         _logger = logger;
     }
 
-    public async Task<TableIndexState<TKey, TProjection>?> LoadIfExistsAsync(
+    public async Task<CollectionIndexState<TKey, TProjection>?> LoadIfExistsAsync(
         string path,
         CancellationToken cancellationToken = default)
     {
@@ -66,7 +66,7 @@ public class JsonTableIndexPersistence<TKey, TProjection> : ITableIndexPersisten
         }
     }
 
-    public byte[] SerializeToBytes(TableIndexState<TKey, TProjection> state)
+    public byte[] SerializeToBytes(CollectionIndexState<TKey, TProjection> state)
     {
         ArgumentNullException.ThrowIfNull(state);
 
@@ -95,7 +95,7 @@ public class JsonTableIndexPersistence<TKey, TProjection> : ITableIndexPersisten
         return dto;
     }
 
-    private IndexDto BuildDtoFromState(TableIndexState<TKey, TProjection> state)
+    private IndexDto BuildDtoFromState(CollectionIndexState<TKey, TProjection> state)
     {
         var dtoRecords = (
             from record in state.Records.Values
@@ -118,11 +118,11 @@ public class JsonTableIndexPersistence<TKey, TProjection> : ITableIndexPersisten
         return new IndexDto(dtoRecords);
     }
 
-    private TableIndexState<TKey, TProjection> BuildStateFromDto(IndexDto? dto)
+    private CollectionIndexState<TKey, TProjection> BuildStateFromDto(IndexDto? dto)
     {
         using var __ = _logger.BeginMethodScope();
 
-        var state = new TableIndexState<TKey, TProjection>(_keyEqualityComparer);
+        var state = new CollectionIndexState<TKey, TProjection>(_keyEqualityComparer);
 
         if (dto?.Records is null)
             return state;

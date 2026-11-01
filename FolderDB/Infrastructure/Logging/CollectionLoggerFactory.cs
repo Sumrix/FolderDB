@@ -3,13 +3,13 @@ using Microsoft.Extensions.Logging;
 
 namespace FolderDB.Infrastructure.Logging;
 
-internal sealed class TableLoggerFactory(ILoggerFactory inner, string tableName) : ILoggerFactory
+internal sealed class CollectionLoggerFactory(ILoggerFactory inner, string collectionName) : ILoggerFactory
 {
     private readonly ILoggerFactory _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-    private readonly string _tableName = tableName ?? throw new ArgumentNullException(nameof(tableName));
+    private readonly string _collectionName = collectionName ?? throw new ArgumentNullException(nameof(collectionName));
 
     public ILogger CreateLogger(string categoryName) =>
-        _inner.CreateLogger(categoryName).CreateTableScopedLogger(_tableName);
+        _inner.CreateLogger(categoryName).CreateCollectionScopedLogger(_collectionName);
 
     public void AddProvider(ILoggerProvider provider) => _inner.AddProvider(provider);
 

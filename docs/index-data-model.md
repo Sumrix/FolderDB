@@ -67,7 +67,7 @@ FolderDB relies on the file system and runtime reliably exposing size and `LastW
 
 ## SchemaVersion and CurrentSchemaVersion
 
-Schema versioning is optional for a table. When versioning is enabled, `SchemaVersion` is the version number of a file's on-disk schema. The schema defines how data is represented in the file, for example:
+Schema versioning is optional for a collection. When versioning is enabled, `SchemaVersion` is the version number of a file's on-disk schema. The schema defines how data is represented in the file, for example:
 
 ```text
 UserV1(int Id, string FullName, SchemaVersion = 1)

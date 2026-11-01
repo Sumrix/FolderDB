@@ -4,13 +4,13 @@ using FolderDB.FileStorage;
 namespace FolderDB;
 
 /// <summary>
-/// Represents the outcome of a table operation.
+/// Represents the outcome of a collection operation.
 /// </summary>
 /// <param name="Error">
 /// The file error observed by the operation, or <see langword="null"/> if the operation succeeded.
 /// </param>
 /// <param name="FileName">
-/// The name of the file in the table directory, or <see langword="null"/> if no file is
+/// The name of the file in the collection directory, or <see langword="null"/> if no file is
 /// associated with the result.
 /// </param>
 public record OperationResult(

@@ -19,10 +19,10 @@ public class RecordScopedIndexEngine<TKey, TRecord, TProjection> : IRecordScoped
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
 {
-    private readonly TableContext<TKey, TRecord, TProjection> _context;
+    private readonly CollectionContext<TKey, TRecord, TProjection> _context;
     private readonly ILogger<RecordScopedIndexEngine<TKey, TRecord, TProjection>> _logger;
     private readonly AutoSaver _autoSaver;
-    private readonly TableIndexState<TKey, TProjection> _indexState;
+    private readonly CollectionIndexState<TKey, TProjection> _indexState;
 
     public IReadOnlyDictionary<TKey, IReadOnlyRecordIndexState<TKey, TProjection>> Records { get; }
     public IReadOnlyDictionary<string, IReadOnlyFileIndexState<TKey, TProjection>> Files { get; }
@@ -31,9 +31,9 @@ public class RecordScopedIndexEngine<TKey, TRecord, TProjection> : IRecordScoped
 
     private RecordScopedIndexEngine(
         string indexPath,
-        TableIndexState<TKey, TProjection> state,
-        ITableIndexPersistence<TKey, TProjection> persistence,
-        TableContext<TKey, TRecord, TProjection> context,
+        CollectionIndexState<TKey, TProjection> state,
+        ICollectionIndexPersistence<TKey, TProjection> persistence,
+        CollectionContext<TKey, TRecord, TProjection> context,
         TimeSpan savingInterval,
         ILogger<RecordScopedIndexEngine<TKey, TRecord, TProjection>> logger,
         ILoggerFactory loggerFactory)
@@ -61,8 +61,8 @@ public class RecordScopedIndexEngine<TKey, TRecord, TProjection> : IRecordScoped
 
     public static async Task<RecordScopedIndexEngine<TKey, TRecord, TProjection>> StartAsync(
         string indexFilePath,
-        TableContext<TKey, TRecord, TProjection> context,
-        ITableIndexPersistence<TKey, TProjection> persistence,
+        CollectionContext<TKey, TRecord, TProjection> context,
+        ICollectionIndexPersistence<TKey, TProjection> persistence,
         TimeSpan? savingInterval = null,
         ILoggerFactory? loggerFactory = null,
         bool autoSaveEnabled = true,
@@ -76,7 +76,7 @@ public class RecordScopedIndexEngine<TKey, TRecord, TProjection> : IRecordScoped
         savingInterval ??= TimeSpan.FromSeconds(10);
 
         var state = await persistence.LoadIfExistsAsync(indexFilePath, cancellationToken)
-            ?? new TableIndexState<TKey, TProjection>(context.KeyEqualityComparer);
+            ?? new CollectionIndexState<TKey, TProjection>(context.KeyEqualityComparer);
 
         var engine = new RecordScopedIndexEngine<TKey, TRecord, TProjection>(
             indexFilePath,
