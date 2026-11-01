@@ -1,7 +1,7 @@
 namespace FolderDB;
 
 /// <summary>
-/// Represents a running file-backed database as an indexed collection.
+/// Represents a running file-backed store as an indexed collection.
 /// </summary>
 /// <typeparam name="TKey">The type of the record id.</typeparam>
 /// <typeparam name="TRecord">The record type stored in the collection.</typeparam>

@@ -10,9 +10,9 @@ public sealed class RecordScopedIndexEngineContext<TKey, TRecord, TProjection>
     where TKey : notnull
 {
     public required CollectionContext<TKey, TRecord, TProjection> Collection { get; init; }
-    public required DatabaseOptions DatabaseOptions { get; init; }
+    public required StoreOptions StoreOptions { get; init; }
     public required string IndexFilePath { get; init; }
     public required CancellationToken CancellationToken { get; init; }
 
-    public ILoggerFactory LoggerFactory => DatabaseOptions.LoggerFactory ?? NullLoggerFactory.Instance;
+    public ILoggerFactory LoggerFactory => StoreOptions.LoggerFactory ?? NullLoggerFactory.Instance;
 }

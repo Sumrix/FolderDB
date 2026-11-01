@@ -13,14 +13,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FolderDB.Runtime;
 
-// Internal because it is part of FolderDatabase's implementation.
-internal sealed class DatabaseFactory
+// Internal because it is part of FolderStore's implementation.
+internal sealed class StoreFactory
 {
     private const string IndexDirectoryName = ".indices";
 
     private readonly string _indexDirectoryPath;
-    private readonly DatabaseOptions _options;
-    private readonly DatabaseResources _resources;
+    private readonly StoreOptions _options;
+    private readonly StoreResources _resources;
 
     private string RootPath { get; }
 
@@ -32,11 +32,11 @@ internal sealed class DatabaseFactory
     /// Also exceptions from:
     /// <see cref="Path.GetFullPath(string)"/>.
     /// </remarks>
-    private DatabaseFactory(string rootPath, DatabaseOptions? options)
+    private StoreFactory(string rootPath, StoreOptions? options)
     {
         ArgumentNullException.ThrowIfNull(rootPath);
 
-        options ??= new DatabaseOptions();
+        options ??= new StoreOptions();
 
         RootPath = PathHelper.NormalizePath(rootPath);
         _indexDirectoryPath = Path.Combine(RootPath, IndexDirectoryName);
@@ -75,10 +75,10 @@ internal sealed class DatabaseFactory
     /// <see cref="PathWatcher(string, string, ILogger{PathWatcher})"/>,
     /// <see cref="PathWatcher.EnableRaisingEvents"/>.
     /// </remarks>
-    public static async Task<FolderDatabase> OpenDatabaseAsync(
+    public static async Task<FolderStore> OpenStoreAsync(
         string path,
         IReadOnlyList<ICollectionDefinition> collectionDefinitions,
-        DatabaseOptions? options,
+        StoreOptions? options,
         CancellationToken cancellationToken)
     {
         // Validation
@@ -118,8 +118,8 @@ internal sealed class DatabaseFactory
         }
 
         // Construction
-        var factory = new DatabaseFactory(path, options);
-        var logger = factory.LoggerFactory.CreateLogger<DatabaseFactory>();
+        var factory = new StoreFactory(path, options);
+        var logger = factory.LoggerFactory.CreateLogger<StoreFactory>();
 
         using var _ = logger.BeginMethodScope();
 
@@ -149,7 +149,7 @@ internal sealed class DatabaseFactory
                 factory.RootPath,
                 logger: factory.LoggerFactory.CreateLogger<PathWatcher>());
 
-            var database = new FolderDatabase(
+            var store = new FolderStore(
                 factory.RootPath,
                 factory._resources,
                 enginesByType,
@@ -158,7 +158,7 @@ internal sealed class DatabaseFactory
 
             logger.LogDebug("Opened: path=\"{RootPath}\"", factory.RootPath);
 
-            return database;
+            return store;
         }
         catch (Exception ex)
         {
@@ -202,7 +202,7 @@ internal sealed class DatabaseFactory
     public static async Task<FolderIndexedRecordCollection<TKey, TRecord, TProjection>> OpenCollectionAsync<TKey, TRecord, TProjection>(
         string path,
         CollectionDefinition<TKey, TRecord, TProjection> definition,
-        DatabaseOptions? options,
+        StoreOptions? options,
         CancellationToken cancellationToken)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
@@ -211,8 +211,8 @@ internal sealed class DatabaseFactory
 
         var directoryName = GetCollectionDirectoryName(definition, nameof(definition));
 
-        var factory = new DatabaseFactory(path, options);
-        var logger = factory.LoggerFactory.CreateLogger<DatabaseFactory>();
+        var factory = new StoreFactory(path, options);
+        var logger = factory.LoggerFactory.CreateLogger<StoreFactory>();
 
         using var _ = logger.BeginMethodScope();
 
@@ -382,7 +382,7 @@ internal sealed class DatabaseFactory
             cancellationToken);
     }
 
-    private static DatabaseResources CreateResources(DatabaseOptions options)
+    private static StoreResources CreateResources(StoreOptions options)
     {
         IFileStore? fileStore = null;
         IRetryScheduler<string>? retryScheduler = null;
@@ -405,7 +405,7 @@ internal sealed class DatabaseFactory
                 throw new InvalidOperationException("The configured retry scheduler factory returned null.");
             }
 
-            return new DatabaseResources(fileStore, retryScheduler);
+            return new StoreResources(fileStore, retryScheduler);
         }
         catch
         {

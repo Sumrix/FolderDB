@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FolderDB.Tests;
 
-public class DatabaseOperationProcessorTests
+public class StoreOperationProcessorTests
 {
     private static readonly CollectionDefinition<string, TestRecord, string> _definition = CollectionDefinitionBuilder
         .Create<string, TestRecord>()
@@ -358,7 +358,7 @@ public class DatabaseOperationProcessorTests
         public string CollectionPath { get; }
         public CollectionIndex<string, TestRecord, string> Index { get; }
         public DelegatingFileStore FileStore { get; }
-        public DatabaseOperationProcessor<string, TestRecord, string> Processor { get; }
+        public StoreOperationProcessor<string, TestRecord, string> Processor { get; }
         public List<(string Path, bool MinBackoff)> ReconcileRequests { get; }
 
         private Harness(
@@ -366,7 +366,7 @@ public class DatabaseOperationProcessorTests
             string collectionPath,
             CollectionIndex<string, TestRecord, string> index,
             DelegatingFileStore fileStore,
-            DatabaseOperationProcessor<string, TestRecord, string> processor,
+            StoreOperationProcessor<string, TestRecord, string> processor,
             List<(string Path, bool MinBackoff)> reconcileRequests)
         {
             _rootPath = rootPath;
@@ -423,7 +423,7 @@ public class DatabaseOperationProcessorTests
                 store,
                 index,
                 NullLogger<FileReconciler<string, TestRecord, string>>.Instance);
-            var processor = new DatabaseOperationProcessor<string, TestRecord, string>(
+            var processor = new StoreOperationProcessor<string, TestRecord, string>(
                 collectionPath,
                 context,
                 index,

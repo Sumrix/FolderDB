@@ -13,9 +13,9 @@ namespace FolderDB;
 /// <summary>
 /// Represents a running set of file-backed collections stored under a single root directory.
 /// </summary>
-public class FolderDatabase : IDatabase
+public class FolderStore : IFolderStore
 {
-    private readonly DatabaseResources _resources;
+    private readonly StoreResources _resources;
     private readonly IReadOnlyDictionary<Type, ICollectionEngine> _collectionEnginesByType;
     private readonly IReadOnlyDictionary<string, ICollectionEngine> _collectionEnginesByDirectoryName;
     private readonly PathWatcher _rootPathWatcher;
@@ -25,11 +25,11 @@ public class FolderDatabase : IDatabase
     /// <inheritdoc/>
     public string RootPath { get; }
 
-    // Internal because a FolderDatabase exists only as a running database.
+    // Internal because a FolderStore exists only as a running store.
     // Making it public would allow creating one in a non-running state.
-    internal FolderDatabase(
+    internal FolderStore(
         string rootPath,
-        DatabaseResources resources,
+        StoreResources resources,
         IReadOnlyDictionary<Type, ICollectionEngine> collectionEnginesByType,
         IReadOnlyDictionary<string, ICollectionEngine> collectionEnginesByDirectoryName,
         PathWatcher rootPathWatcher)
@@ -48,19 +48,19 @@ public class FolderDatabase : IDatabase
     }
 
     /// <summary>
-    /// Opens a database with the specified collections at the specified path.
+    /// Opens a store with the specified collections at the specified path.
     /// </summary>
     /// <remarks>
-    /// Opening takes longer the first time the database is opened in a directory, or after its index cache was discarded.
+    /// Opening takes longer the first time the store is opened in a directory, or after its index cache was discarded.
     /// </remarks>
     /// <param name="path">
-    /// The path to the database, specified as a relative or absolute path.
+    /// The path to the store, specified as a relative or absolute path.
     /// A relative path is interpreted as relative to the current working directory.
     /// </param>
-    /// <param name="collectionDefinitions">The definitions that describe and configure the collections in the database.</param>
-    /// <param name="options">Options to control the behavior of the database.</param>
+    /// <param name="collectionDefinitions">The definitions that describe and configure the collections in the store.</param>
+    /// <param name="options">Options to control the behavior of the store.</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-    /// <returns>A task that returns the opened <see cref="FolderDatabase"/> instance.</returns>
+    /// <returns>A task that returns the opened <see cref="FolderStore"/> instance.</returns>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="path"/> or <paramref name="collectionDefinitions"/> is <see langword="null"/>.
     ///
@@ -125,28 +125,28 @@ public class FolderDatabase : IDatabase
     /// The current operating system is not Microsoft Windows NT or later.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
-    public static Task<FolderDatabase> OpenAsync(
+    public static Task<FolderStore> OpenAsync(
         string path,
         IReadOnlyList<ICollectionDefinition> collectionDefinitions,
-        DatabaseOptions? options = null,
+        StoreOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return DatabaseFactory.OpenDatabaseAsync(path, collectionDefinitions, options, cancellationToken);
+        return StoreFactory.OpenStoreAsync(path, collectionDefinitions, options, cancellationToken);
     }
 
     /// <summary>
-    /// Opens a database as a single collection at the specified path.
+    /// Opens a store as a single collection at the specified path.
     /// </summary>
     /// <remarks>
-    /// Opening takes longer the first time the database is opened in a directory, or after its index cache was discarded.
+    /// Opening takes longer the first time the store is opened in a directory, or after its index cache was discarded.
     /// </remarks>
     /// <param name="path">
-    /// The path to the database, specified as a relative or absolute path.
+    /// The path to the store, specified as a relative or absolute path.
     /// A relative path is interpreted as relative to the current working directory.
     /// The directory that holds the collection is created when missing.
     /// </param>
     /// <param name="definition">The definition that describes and configures the collection.</param>
-    /// <param name="options">Options to control the behavior of the database.</param>
+    /// <param name="options">Options to control the behavior of the store.</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
     /// <returns>A task that returns the opened <see cref="IFolderRecordCollection{TKey, TRecord}"/> instance.</returns>
     /// <exception cref="ArgumentNullException">
@@ -211,27 +211,27 @@ public class FolderDatabase : IDatabase
     public static async Task<IFolderRecordCollection<TKey, TRecord>> OpenCollectionAsync<TKey, TRecord>(
         string path,
         CollectionDefinition<TKey, TRecord, NoProjection> definition,
-        DatabaseOptions? options = null,
+        StoreOptions? options = null,
         CancellationToken cancellationToken = default)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        return await DatabaseFactory.OpenCollectionAsync(path, definition, options, cancellationToken);
+        return await StoreFactory.OpenCollectionAsync(path, definition, options, cancellationToken);
     }
 
     /// <summary>
-    /// Opens a database as a single indexed collection at the specified path.
+    /// Opens a store as a single indexed collection at the specified path.
     /// </summary>
     /// <remarks>
-    /// Opening takes longer the first time the database is opened in a directory, or after its index cache was discarded.
+    /// Opening takes longer the first time the store is opened in a directory, or after its index cache was discarded.
     /// </remarks>
     /// <param name="path">
-    /// The path to the database, specified as a relative or absolute path.
+    /// The path to the store, specified as a relative or absolute path.
     /// A relative path is interpreted as relative to the current working directory.
     /// The directory that holds the collection is created when missing.
     /// </param>
     /// <param name="definition">The definition that describes and configures the collection.</param>
-    /// <param name="options">Options to control the behavior of the database.</param>
+    /// <param name="options">Options to control the behavior of the store.</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
     /// <returns>
     /// A task that returns the opened <see cref="IFolderIndexedRecordCollection{TKey, TRecord, TProjection}"/> instance.
@@ -298,12 +298,12 @@ public class FolderDatabase : IDatabase
     public static async Task<IFolderIndexedRecordCollection<TKey, TRecord, TProjection>> OpenIndexedCollectionAsync<TKey, TRecord, TProjection>(
         string path,
         CollectionDefinition<TKey, TRecord, TProjection> definition,
-        DatabaseOptions? options = null,
+        StoreOptions? options = null,
         CancellationToken cancellationToken = default)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        return await DatabaseFactory.OpenCollectionAsync(path, definition, options, cancellationToken);
+        return await StoreFactory.OpenCollectionAsync(path, definition, options, cancellationToken);
     }
 
     /// <summary>
@@ -312,7 +312,7 @@ public class FolderDatabase : IDatabase
     /// <typeparam name="TKey">The type of the record id the collection was defined with.</typeparam>
     /// <typeparam name="TRecord">The record type the collection stores.</typeparam>
     /// <returns>The collection that stores <typeparamref name="TRecord"/>.</returns>
-    /// <exception cref="ObjectDisposedException">The database has been disposed.</exception>
+    /// <exception cref="ObjectDisposedException">The store has been disposed.</exception>
     /// <exception cref="InvalidOperationException">
     /// There is no collection defined with <typeparamref name="TKey"/> and <typeparamref name="TRecord"/>.
     /// </exception>
@@ -332,7 +332,7 @@ public class FolderDatabase : IDatabase
     /// <returns>
     /// The collection that stores <typeparamref name="TRecord"/>, together with its projection index.
     /// </returns>
-    /// <exception cref="ObjectDisposedException">The database has been disposed.</exception>
+    /// <exception cref="ObjectDisposedException">The store has been disposed.</exception>
     /// <exception cref="InvalidOperationException">
     /// There is no collection defined with <typeparamref name="TKey"/>, <typeparamref name="TRecord"/>
     /// and <typeparamref name="TProjection"/>.
@@ -384,7 +384,7 @@ public class FolderDatabase : IDatabase
         ObjectDisposedException.ThrowIf(_disposed == 1, this);
     }
 
-    /// <exception cref="ObjectDisposedException">The database has been disposed.</exception>
+    /// <exception cref="ObjectDisposedException">The store has been disposed.</exception>
     /// <exception cref="InvalidOperationException">
     /// There is no collection for <typeparamref name="TRecord"/>.
     ///
@@ -401,7 +401,7 @@ public class FolderDatabase : IDatabase
         {
             throw new InvalidOperationException(
                 $"No collection is defined for record type '{typeof(TRecord)}'. " +
-                $"Pass its collection definition to {nameof(FolderDatabase)}.{nameof(OpenAsync)}.");
+                $"Pass its collection definition to {nameof(FolderStore)}.{nameof(OpenAsync)}.");
         }
 
         if (collectionEngine is not TCollection collection)

@@ -144,7 +144,7 @@ public class CollectionDefinitionBuilderTests
         var indexContext = new RecordScopedIndexEngineContext<string, TestRecord, string>
         {
             Collection = collection,
-            DatabaseOptions = CreateDatabaseOptions(),
+            StoreOptions = CreateStoreOptions(),
             IndexFilePath = "index.bin",
             CancellationToken = CancellationToken.None,
         };
@@ -153,9 +153,9 @@ public class CollectionDefinitionBuilderTests
         Assert.Same(expectedEngine, await blueprint.IndexEngineFactory!(indexContext));
     }
 
-    private static DatabaseOptions CreateDatabaseOptions()
+    private static StoreOptions CreateStoreOptions()
     {
-        return new DatabaseOptions
+        return new StoreOptions
         {
             LoggerFactory = NullLoggerFactory.Instance
         };

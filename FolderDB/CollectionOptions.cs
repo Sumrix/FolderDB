@@ -73,7 +73,7 @@ public class CollectionOptions<TKey, TRecord>
     /// </para>
     /// <para>
     /// Candidates are enumerated lazily. The next one is taken when a name is already taken by
-    /// another record, up to <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> times;
+    /// another record, up to <see cref="StoreOptions.MaxFileNameReserveAttempts"/> times;
     /// running out of candidates fails the operation.
     /// </para>
     /// </remarks>

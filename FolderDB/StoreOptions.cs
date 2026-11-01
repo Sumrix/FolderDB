@@ -6,15 +6,15 @@ using Microsoft.Extensions.Logging;
 namespace FolderDB;
 
 /// <summary>
-/// Provides options to be used with <see cref="FolderDatabase"/>.
+/// Provides options to be used with <see cref="FolderStore"/>.
 /// </summary>
-public sealed class DatabaseOptions
+public sealed class StoreOptions
 {
     private int _maxFileNameReserveAttempts = 5;
     private TimeSpan _indexAutoSaveInterval = TimeSpan.FromSeconds(10);
 
     /// <summary>
-    /// Gets or sets the factory used to create loggers for the database.
+    /// Gets or sets the factory used to create loggers for the store.
     /// </summary>
     /// <returns>
     /// The logger factory. The default is <see langword="null"/>, which indicates that nothing is
@@ -64,7 +64,7 @@ public sealed class DatabaseOptions
     }
 
     /// <summary>
-    /// Gets or sets the factory used to create the file store of the database.
+    /// Gets or sets the factory used to create the file store of the store.
     /// </summary>
     /// <returns>
     /// The file store factory. The default is <see langword="null"/>, which indicates that

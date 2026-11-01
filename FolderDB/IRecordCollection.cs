@@ -64,7 +64,7 @@ public interface IRecordCollection<in TKey, TRecord>
     /// -or-
     ///
     /// No free file name was found within
-    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
     /// </exception>
     /// <exception cref="FileOperationException">
     /// The record could not be encoded.
@@ -142,7 +142,7 @@ public interface IRecordCollection<in TKey, TRecord>
     /// -or-
     ///
     /// No free file name was found within
-    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default);

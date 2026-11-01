@@ -5,7 +5,7 @@ using FolderDB.Retry;
 
 namespace FolderDB.Runtime;
 
-internal sealed class DatabaseResources(IFileStore fileStore, IRetryScheduler<string> retryScheduler) : IDisposable
+internal sealed class StoreResources(IFileStore fileStore, IRetryScheduler<string> retryScheduler) : IDisposable
 {
     public IFileStore FileStore { get; } = fileStore;
     public IRetryScheduler<string> RetryScheduler { get; } = retryScheduler;

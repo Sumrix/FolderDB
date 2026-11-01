@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FolderDB.Runtime;
 
-internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
+internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
     string collectionPath,
     CollectionContext<TKey, TRecord, TProjection> context,
     CollectionIndex<TKey, TRecord, TProjection> index,
@@ -25,13 +25,13 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     int maxFileNameReserveAttempts,
     FileReconciler<TKey, TRecord, TProjection> fileReconciler,
     Action<string, bool> requestFileReconcile,
-    ILogger<DatabaseOperationProcessor<TKey, TRecord, TProjection>>? logger)
+    ILogger<StoreOperationProcessor<TKey, TRecord, TProjection>>? logger)
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
 {
     private readonly int _maxFileNameReserveAttempts = Math.Max(1, maxFileNameReserveAttempts);
-    private readonly ILogger<DatabaseOperationProcessor<TKey, TRecord, TProjection>> _logger =
-        logger ?? NullLogger<DatabaseOperationProcessor<TKey, TRecord, TProjection>>.Instance;
+    private readonly ILogger<StoreOperationProcessor<TKey, TRecord, TProjection>> _logger =
+        logger ?? NullLogger<StoreOperationProcessor<TKey, TRecord, TProjection>>.Instance;
 
     /// <exception cref="ArgumentNullException"><paramref name="id"/> is <see langword="null"/>.</exception>
     /// <exception cref="FileOperationException">
@@ -73,7 +73,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     /// -or-
     ///
     /// No free file name was found within
-    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
     /// </exception>
     /// <exception cref="FileOperationException">
     /// The record could not be encoded.
@@ -178,7 +178,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     /// -or-
     ///
     /// No free file name was found within
-    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default)
@@ -305,7 +305,7 @@ internal class DatabaseOperationProcessor<TKey, TRecord, TProjection>(
     /// -or-
     ///
     /// No free file name was found within
-    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     private async Task<OperationResult> InsertAsync(

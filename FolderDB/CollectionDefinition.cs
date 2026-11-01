@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging;
 namespace FolderDB;
 
 /// <summary>
-/// Specifies the values a database uses to create and start a collection.
+/// Specifies the values a store uses to create and start a collection.
 /// </summary>
 /// <typeparam name="TKey">The type of the record id.</typeparam>
 /// <typeparam name="TRecord">The record type stored in the collection.</typeparam>
@@ -56,7 +56,7 @@ public class CollectionDefinition<TKey, TRecord, TProjection>: ICollectionDefini
     /// </para>
     /// <para>
     /// Candidates are enumerated lazily. The next one is taken when a name is already taken by
-    /// another record, up to <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> times;
+    /// another record, up to <see cref="StoreOptions.MaxFileNameReserveAttempts"/> times;
     /// running out of candidates fails the operation.
     /// </para>
     /// </remarks>
@@ -112,7 +112,7 @@ public class CollectionDefinition<TKey, TRecord, TProjection>: ICollectionDefini
     /// <param name="indexFilePath">The file the collection index is persisted to.</param>
     /// <param name="fileStore">The file store the collection reads and writes records through.</param>
     /// <param name="retryScheduler">The scheduler that queues reconciliation retries.</param>
-    /// <param name="options">Options to control the behavior of the database.</param>
+    /// <param name="options">Options to control the behavior of the store.</param>
     /// <param name="loggerFactory">The logger factory scoped to this collection.</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
     /// <returns>
@@ -142,7 +142,7 @@ public class CollectionDefinition<TKey, TRecord, TProjection>: ICollectionDefini
         string indexFilePath,
         IFileStore fileStore,
         IRetryScheduler<string> retryScheduler,
-        DatabaseOptions options,
+        StoreOptions options,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {

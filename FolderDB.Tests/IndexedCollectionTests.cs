@@ -13,8 +13,8 @@ public sealed class IndexedCollectionTests
 
         try
         {
-            await using var db = await FolderDatabase.OpenAsync(rootPath, [CreateCollectionDefinition()], cancellationToken: TestContext.Current.CancellationToken);
-            var collection = db.IndexedCollection<string, PlainTestRecord, NoProjection>();
+            await using var store = await FolderStore.OpenAsync(rootPath, [CreateCollectionDefinition()], cancellationToken: TestContext.Current.CancellationToken);
+            var collection = store.IndexedCollection<string, PlainTestRecord, NoProjection>();
 
             await collection.TryUpsertAsync(new PlainTestRecord("id-1", "value-1"), TestContext.Current.CancellationToken);
 

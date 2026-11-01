@@ -25,11 +25,11 @@ using FolderDB;
 
 var users = CollectionDefinitionBuilder.CreateDefault<string, User>();
 
-await using var db = await FolderDatabase.OpenAsync(
+await using var store = await FolderStore.OpenAsync(
     path: "data",
     collectionDefinitions: [users]);
 
-var collection = db.Collection<string, User>();
+var collection = store.Collection<string, User>();
 
 await collection.UpsertAsync(new User(
     Id: "alice",

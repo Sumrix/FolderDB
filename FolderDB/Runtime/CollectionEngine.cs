@@ -30,7 +30,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
     private readonly CollectionIndex<TKey, TRecord, TProjection> _index;
     private readonly FileReconciler<TKey, TRecord, TProjection> _fileReconciler;
     private readonly DirectoryReconciler<TKey, TRecord, TProjection> _directoryReconciler;
-    private readonly DatabaseOperationProcessor<TKey, TRecord, TProjection> _processor;
+    private readonly StoreOperationProcessor<TKey, TRecord, TProjection> _processor;
     private readonly PathWatcher _watcher;
     private readonly IReadOnlyDictionary<TKey, IndexedFile<TProjection>> _indexedFiles;
     private readonly IReadOnlyDictionary<TKey, TProjection> _projections;
@@ -46,7 +46,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
         CollectionIndex<TKey, TRecord, TProjection> index,
         FileReconciler<TKey, TRecord, TProjection> fileReconciler,
         DirectoryReconciler<TKey, TRecord, TProjection> directoryReconciler,
-        DatabaseOperationProcessor<TKey, TRecord, TProjection> processor,
+        StoreOperationProcessor<TKey, TRecord, TProjection> processor,
         PathWatcher watcher)
     {
         _collectionPath = collectionPath;
@@ -85,7 +85,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
         CollectionDefinition<TKey, TRecord, TProjection> definition,
         IFileStore storage,
         IRetryScheduler<string> retryScheduler,
-        DatabaseOptions options,
+        StoreOptions options,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
@@ -121,7 +121,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
             (path, minBackoff) => retryScheduler.Enqueue(path, fileReconciler.ReconcileAsync, minBackoff),
             loggerFactory.CreateLogger<DirectoryReconciler<TKey, TRecord, TProjection>>());
 
-        var processor = new DatabaseOperationProcessor<TKey, TRecord, TProjection>(
+        var processor = new StoreOperationProcessor<TKey, TRecord, TProjection>(
             collectionPath,
             collectionContext,
             index,
@@ -129,7 +129,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
             options.MaxFileNameReserveAttempts,
             fileReconciler,
             (path, minBackoff) => retryScheduler.Enqueue(path, fileReconciler.ReconcileAsync, minBackoff),
-            loggerFactory.CreateLogger<DatabaseOperationProcessor<TKey, TRecord, TProjection>>());
+            loggerFactory.CreateLogger<StoreOperationProcessor<TKey, TRecord, TProjection>>());
 
         var watcher = new PathWatcher(
             collectionPath,
@@ -157,15 +157,15 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
     /// </exception>
     private static IFileStore CreateRetryFileStore(
         IFileStore inner,
-        DatabaseOptions databaseOptions,
+        StoreOptions storeOptions,
         ILoggerFactory loggerFactory)
     {
-        if (databaseOptions.FileStoreRetryFactory is null)
+        if (storeOptions.FileStoreRetryFactory is null)
         {
             return new RetryFileStore(inner, options: null, loggerFactory);
         }
 
-        var retryStore = databaseOptions.FileStoreRetryFactory(new FileStoreRetryContext
+        var retryStore = storeOptions.FileStoreRetryFactory(new FileStoreRetryContext
         {
             Inner = inner,
             LoggerFactory = loggerFactory
@@ -220,7 +220,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
         string indexFilePath,
         CollectionDefinition<TKey, TRecord, TProjection> definition,
         CollectionContext<TKey, TRecord, TProjection> collectionContext,
-        DatabaseOptions options,
+        StoreOptions options,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -250,7 +250,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
             var ctx = new RecordScopedIndexEngineContext<TKey, TRecord, TProjection>
             {
                 Collection = collectionContext,
-                DatabaseOptions = options,
+                StoreOptions = options,
                 IndexFilePath = indexFilePath,
                 CancellationToken = cancellationToken
             };
@@ -304,7 +304,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
     /// -or-
     ///
     /// No free file name was found within
-    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
     /// </exception>
     /// <exception cref="FileOperationException">
     /// The record could not be encoded.
@@ -348,7 +348,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
     /// -or-
     ///
     /// No free file name was found within
-    /// <see cref="DatabaseOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default) => _processor.TryUpsertAsync(record, cancellationToken);
