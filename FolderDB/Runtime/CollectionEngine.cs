@@ -85,6 +85,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
         CollectionDefinition<TKey, TRecord, TProjection> definition,
         IFileStore storage,
         IRetryScheduler<string> retryScheduler,
+        Dictionary<FileOperation, IEnumerable<TimeSpan>?>? retry,
         StoreOptions options,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
@@ -102,10 +103,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
             storage);
         var operationStore = new RecordStore<TKey, TRecord>(
             collectionContext.RecordCodec,
-            CreateRetryFileStore(
-                storage,
-                options,
-                loggerFactory));
+            new RetryFileStore(storage, retry, loggerFactory));
         var index = await CreateIndexAsync(indexFilePath, definition, collectionContext, options, loggerFactory, cancellationToken);
 
         var fileReconciler = new FileReconciler<TKey, TRecord, TProjection>(
@@ -150,32 +148,6 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
         collectionEngine.RequestDirectoryReconcile();
 
         return collectionEngine;
-    }
-
-    /// <exception cref="InvalidOperationException">
-    /// The configured file store retry factory returned null.
-    /// </exception>
-    private static IFileStore CreateRetryFileStore(
-        IFileStore inner,
-        StoreOptions storeOptions,
-        ILoggerFactory loggerFactory)
-    {
-        if (storeOptions.FileStoreRetryFactory is null)
-        {
-            return new RetryFileStore(inner, options: null, loggerFactory);
-        }
-
-        var retryStore = storeOptions.FileStoreRetryFactory(new FileStoreRetryContext
-        {
-            Inner = inner,
-            LoggerFactory = loggerFactory
-        });
-        if (retryStore is null)
-        {
-            throw new InvalidOperationException("The configured file store retry factory returned null.");
-        }
-
-        return retryStore;
     }
 
     /// <exception cref="InvalidOperationException">

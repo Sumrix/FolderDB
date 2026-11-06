@@ -112,6 +112,10 @@ public class CollectionDefinition<TKey, TRecord, TProjection>: ICollectionDefini
     /// <param name="indexFilePath">The file the collection index is persisted to.</param>
     /// <param name="fileStore">The file store the collection reads and writes records through.</param>
     /// <param name="retryScheduler">The scheduler that queues reconciliation retries.</param>
+    /// <param name="retry">
+    /// The retry policies of file operations, chosen once when the store starts, or
+    /// <see langword="null"/> if file operations are not retried.
+    /// </param>
     /// <param name="options">Options to control the behavior of the store.</param>
     /// <param name="loggerFactory">The logger factory scoped to this collection.</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
@@ -142,6 +146,7 @@ public class CollectionDefinition<TKey, TRecord, TProjection>: ICollectionDefini
         string indexFilePath,
         IFileStore fileStore,
         IRetryScheduler<string> retryScheduler,
+        Dictionary<FileOperation, IEnumerable<TimeSpan>?>? retry,
         StoreOptions options,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
@@ -154,6 +159,7 @@ public class CollectionDefinition<TKey, TRecord, TProjection>: ICollectionDefini
             this,
             fileStore,
             retryScheduler,
+            retry,
             options,
             loggerFactory,
             cancellationToken);

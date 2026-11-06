@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using FolderDB.FileStorage;
 using FolderDB.Retry;
 using Microsoft.Extensions.Logging;
@@ -77,13 +78,14 @@ public sealed class StoreOptions
     public Func<IFileStore>? FileStoreFactory { get; set; }
 
     /// <summary>
-    /// Gets or sets the factory used to wrap the file store in the retry behavior of record operations.
+    /// Gets or sets the function that chooses the retry delays of each file operation.
     /// </summary>
     /// <returns>
-    /// The retry factory. The default is <see langword="null"/>, which indicates that
-    /// <see cref="RetryFileStore"/> is used.
+    /// The function that chooses the retry delays of each operation. The default is
+    /// <see cref="RetryPolicy.Default(FileOperation)"/>. <see langword="null"/>, from
+    /// the function or instead of it, indicates that the operation is not retried.
     /// </returns>
-    public Func<FileStoreRetryContext, IFileStore>? FileStoreRetryFactory { get; set; }
+    public Func<FileOperation, IEnumerable<TimeSpan>?>? Retry { get; set; } = RetryPolicy.Default;
 
     /// <summary>
     /// Gets or sets the factory used to create the scheduler that re-runs deferred file work.

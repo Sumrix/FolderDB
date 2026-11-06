@@ -328,6 +328,7 @@ internal sealed class StoreFactory
             indexFilePath,
             _resources.FileStore,
             _resources.RetryScheduler,
+            _resources.Retry,
             _options,
             LoggerFactory.CreateCollectionScopedLoggerFactory(collectionDefinition.Name),
             cancellationToken);
@@ -377,6 +378,7 @@ internal sealed class StoreFactory
             collectionDefinition,
             _resources.FileStore,
             _resources.RetryScheduler,
+            _resources.Retry,
             _options,
             LoggerFactory.CreateCollectionScopedLoggerFactory(collectionDefinition.Name),
             cancellationToken);
@@ -405,7 +407,7 @@ internal sealed class StoreFactory
                 throw new InvalidOperationException("The configured retry scheduler factory returned null.");
             }
 
-            return new StoreResources(fileStore, retryScheduler);
+            return new StoreResources(fileStore, retryScheduler, ResolveRetry(options.Retry));
         }
         catch
         {
@@ -413,6 +415,19 @@ internal sealed class StoreFactory
             DisposeHelper.SafeDispose(retryScheduler);
             throw;
         }
+    }
+
+    private static Dictionary<FileOperation, IEnumerable<TimeSpan>?>? ResolveRetry(Func<FileOperation, IEnumerable<TimeSpan>?>? retry)
+    {
+        if (retry is null)
+            return null;
+
+        return new()
+        {
+            [FileOperation.Read] = retry(FileOperation.Read),
+            [FileOperation.Write] = retry(FileOperation.Write),
+            [FileOperation.Delete] = retry(FileOperation.Delete)
+        };
     }
 
     private sealed class NullEngine : ICollectionEngine

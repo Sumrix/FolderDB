@@ -1,36 +1,24 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FolderDB.FileStorage;
+using FolderDB.Retry;
 
 namespace FolderDB.Tests;
 
 public class RetryFileStoreTests
 {
-    // Guards the explicit NaN check in the setter: ThrowIfLessThan lets NaN through, because every
-    // comparison with it is false, and the delay computed from it throws deep inside a file operation.
-    [Fact]
-    public void BackoffMultiplier_WhenNaN_Throws()
-    {
-        var options = new RetryFileStoreOperationOptions();
-
-        Assert.Throws<ArgumentOutOfRangeException>(() => options.BackoffMultiplier = double.NaN);
-    }
-
     [Fact]
     public async Task WriteAsync_WhenRetriesAreExhausted_ReturnsLastException()
     {
         var inner = new TransientWriteFileStore(failuresBeforeSuccess: 10);
         var retryStore = new RetryFileStore(
             inner,
-            new RetryFileStoreOptions
+            new()
             {
-                Write = new RetryFileStoreOperationOptions
-                {
-                    MaxAttempts = 2,
-                    Delay = TimeSpan.Zero
-                }
+                [FileOperation.Write] = TimeSpanSequence.Constant(TimeSpan.Zero, 1)
             });
 
         var result = await retryStore.WriteAsync("record.json", _ => Task.CompletedTask, CancellationToken.None);
@@ -40,6 +28,47 @@ public class RetryFileStoreTests
         Assert.Equal(2, inner.WriteAttempts);
         var exception = Assert.IsType<IOException>(result.Error?.Exception);
         Assert.Equal("transient write attempt 2", exception.Message);
+    }
+
+    [Fact]
+    public async Task WriteAsync_WhenDelaysThrow_ReturnsLastFailure()
+    {
+        var inner = new TransientWriteFileStore(failuresBeforeSuccess: 10);
+        var retryStore = new RetryFileStore(
+            inner,
+            new()
+            {
+                [FileOperation.Write] = ThrowingDelays()
+            });
+
+        var result = await retryStore.WriteAsync("record.json", _ => Task.CompletedTask, CancellationToken.None);
+
+        Assert.Equal(FileErrorPersistence.Transient, result.Error?.Persistence);
+        Assert.Equal(2, inner.WriteAttempts);
+        Assert.Equal("transient write attempt 2", Assert.IsType<IOException>(result.Error?.Exception).Message);
+
+        static IEnumerable<TimeSpan> ThrowingDelays()
+        {
+            yield return TimeSpan.Zero;
+            throw new InvalidOperationException("broken delays");
+        }
+    }
+
+    [Fact]
+    public async Task WriteAsync_EnumeratesDelaysFromStartForEachOperation()
+    {
+        var inner = new TransientWriteFileStore(failuresBeforeSuccess: 10);
+        var retryStore = new RetryFileStore(
+            inner,
+            new()
+            {
+                [FileOperation.Write] = [TimeSpan.Zero, TimeSpan.Zero]
+            });
+
+        await retryStore.WriteAsync("first.json", _ => Task.CompletedTask, CancellationToken.None);
+        await retryStore.WriteAsync("second.json", _ => Task.CompletedTask, CancellationToken.None);
+
+        Assert.Equal(6, inner.WriteAttempts);
     }
 
     private sealed class TransientWriteFileStore(int failuresBeforeSuccess) : IFileStore
