@@ -386,18 +386,12 @@ internal sealed class StoreFactory
 
     private static StoreResources CreateResources(StoreOptions options)
     {
-        IFileStore? fileStore = null;
         IRetryScheduler<string>? retryScheduler = null;
         var loggerFactory = options.LoggerFactory ?? NullLoggerFactory.Instance;
 
         try
         {
-            fileStore = options.FileStoreFactory?.Invoke()
-                        ?? new FileStore(loggerFactory.CreateLogger<FileStore>());
-            if (fileStore is null)
-            {
-                throw new InvalidOperationException("The configured file store factory returned null.");
-            }
+            var fileStore = options.FileStore ?? new FileStore(loggerFactory.CreateLogger<FileStore>());
 
             retryScheduler = options.RetrySchedulerFactory is null
                 ? new TimeBucketQueueManager(loggerFactory: loggerFactory)
@@ -411,7 +405,6 @@ internal sealed class StoreFactory
         }
         catch
         {
-            DisposeHelper.SafeDispose(fileStore as IDisposable);
             DisposeHelper.SafeDispose(retryScheduler);
             throw;
         }

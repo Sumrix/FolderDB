@@ -18,6 +18,5 @@ internal sealed class StoreResources(
     public void Dispose()
     {
         DisposeHelper.SafeDispose(RetryScheduler);
-        DisposeHelper.SafeDispose(FileStore as IDisposable);
     }
 }

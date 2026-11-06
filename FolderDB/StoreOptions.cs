@@ -65,17 +65,17 @@ public sealed class StoreOptions
     }
 
     /// <summary>
-    /// Gets or sets the factory used to create the file store of the store.
+    /// Gets or sets the file store used to access files.
     /// </summary>
     /// <returns>
-    /// The file store factory. The default is <see langword="null"/>, which indicates that
-    /// <see cref="FileStore"/> is used.
+    /// The file store. The default is <see langword="null"/>, which indicates that
+    /// <see cref="FileStorage.FileStore"/> is used.
     /// </returns>
     /// <remarks>
     /// Set this property to customize low-level file access behavior, including how file access
     /// errors are classified as transient or permanent.
     /// </remarks>
-    public Func<IFileStore>? FileStoreFactory { get; set; }
+    public IFileStore? FileStore { get; set; }
 
     /// <summary>
     /// Gets or sets the function that chooses the retry delays of each file operation.
