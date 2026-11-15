@@ -328,7 +328,6 @@ internal sealed class StoreFactory
             indexFilePath,
             _resources.FileStore,
             _resources.RetryScheduler,
-            _resources.Retry,
             _options,
             LoggerFactory.CreateCollectionScopedLoggerFactory(collectionDefinition.Name),
             cancellationToken);
@@ -378,7 +377,6 @@ internal sealed class StoreFactory
             collectionDefinition,
             _resources.FileStore,
             _resources.RetryScheduler,
-            _resources.Retry,
             _options,
             LoggerFactory.CreateCollectionScopedLoggerFactory(collectionDefinition.Name),
             cancellationToken);
@@ -386,41 +384,11 @@ internal sealed class StoreFactory
 
     private static StoreResources CreateResources(StoreOptions options)
     {
-        IRetryScheduler<string>? retryScheduler = null;
         var loggerFactory = options.LoggerFactory ?? NullLoggerFactory.Instance;
+        var fileStore = options.FileStore ?? new FileStore(loggerFactory.CreateLogger<FileStore>());
+        var retryScheduler = new TimeBucketQueueManager(options.ReconciliationRetryDelays, loggerFactory);
 
-        try
-        {
-            var fileStore = options.FileStore ?? new FileStore(loggerFactory.CreateLogger<FileStore>());
-
-            retryScheduler = options.RetrySchedulerFactory is null
-                ? new TimeBucketQueueManager(loggerFactory: loggerFactory)
-                : options.RetrySchedulerFactory(loggerFactory);
-            if (retryScheduler is null)
-            {
-                throw new InvalidOperationException("The configured retry scheduler factory returned null.");
-            }
-
-            return new StoreResources(fileStore, retryScheduler, ResolveRetry(options.Retry));
-        }
-        catch
-        {
-            DisposeHelper.SafeDispose(retryScheduler);
-            throw;
-        }
-    }
-
-    private static Dictionary<FileOperation, IEnumerable<TimeSpan>?>? ResolveRetry(Func<FileOperation, IEnumerable<TimeSpan>?>? retry)
-    {
-        if (retry is null)
-            return null;
-
-        return new()
-        {
-            [FileOperation.Read] = retry(FileOperation.Read),
-            [FileOperation.Write] = retry(FileOperation.Write),
-            [FileOperation.Delete] = retry(FileOperation.Delete)
-        };
+        return new StoreResources(fileStore, retryScheduler);
     }
 
     private sealed class NullEngine : ICollectionEngine

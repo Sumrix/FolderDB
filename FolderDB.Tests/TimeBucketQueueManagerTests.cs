@@ -7,20 +7,74 @@ namespace FolderDB.Tests;
 
 public class TimeBucketQueueManagerTests
 {
-    // One bucket is short, but a backed off attempt lands 20 buckets (~1s) away. That gap is what
+    // One bucket is short, but a backed off attempt lands 20 buckets (1s) away. That gap is what
     // makes the assertions below distinguish "kept its backoff progression" from "moved to the front".
     private static readonly TimeSpan _interval = TimeSpan.FromMilliseconds(50);
-    private const int _backoffMultiplier = 20;
+    private static readonly TimeSpan _backoff = TimeSpan.FromSeconds(1);
     private const int _minBackoffWaitMs = 500;
     private const int _backoffQuietWaitMs = 400;
 
     private static TimeBucketQueueManager CreateManager() =>
-        new(new TimeBucketQueueManagerOptions
-        {
-            Interval = _interval,
-            MaxRetryIntervals = 100,
-            BackoffMultiplier = _backoffMultiplier
-        });
+        new([_interval, _backoff]);
+
+    // Delays close to the interval stay at it instead of jumping to two, and a half goes up rather
+    // than to the even neighbour.
+    [Theory]
+    [InlineData(110, 1)]
+    [InlineData(149, 1)]
+    [InlineData(150, 2)]
+    [InlineData(250, 3)]
+    [InlineData(300, 3)]
+    [InlineData(349, 3)]
+    [InlineData(350, 4)]
+    public void ToIntervals_RoundsLaterDelayToNearestInterval(int delayMs, long expectedIntervals)
+    {
+        var intervals = TimeBucketQueueManager.ToIntervals(
+            [TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(delayMs)],
+            intervalMs: 100);
+
+        Assert.Equal([1, expectedIntervals], intervals);
+    }
+
+    // The options accept any positive first delay, and one cut to zero milliseconds would divide the
+    // clock by zero.
+    [Fact]
+    public async Task Enqueue_WhenFirstDelayIsShorterThanOneMillisecond_StillRuns()
+    {
+        using var manager = new TimeBucketQueueManager([TimeSpan.FromTicks(1)]);
+        var probe = new ProcessorProbe(manager, inFlightRequestMinBackoff: null);
+
+        manager.Enqueue("alpha", probe.ProcessAsync);
+
+        Assert.True(await probe.WaitForNextAttemptAsync());
+    }
+
+    // A zero delay would aim at the bucket that is already being processed; the raise to one
+    // interval moves the attempt to the next one.
+    [Fact]
+    public async Task Enqueue_WhenLaterDelayIsShorterThanFirst_RetriesAfterOneInterval()
+    {
+        using var manager = new TimeBucketQueueManager([_interval, TimeSpan.Zero]);
+        var probe = new ProcessorProbe(manager, inFlightRequestMinBackoff: null);
+
+        manager.Enqueue("alpha", probe.ProcessAsync);
+
+        Assert.True(await probe.WaitForNextAttemptAsync());
+        Assert.True(await probe.WaitForNextAttemptAsync(_minBackoffWaitMs));
+    }
+
+    // The retry is one attempt past the end of the list, so it has to wait the last delay again.
+    [Fact]
+    public async Task Enqueue_WhenDelaysRunOut_RepeatsLastDelay()
+    {
+        using var manager = new TimeBucketQueueManager([_interval]);
+        var probe = new ProcessorProbe(manager, inFlightRequestMinBackoff: null);
+
+        manager.Enqueue("alpha", probe.ProcessAsync);
+
+        Assert.True(await probe.WaitForNextAttemptAsync());
+        Assert.True(await probe.WaitForNextAttemptAsync(_minBackoffWaitMs));
+    }
 
     [Fact]
     public async Task Enqueue_WhenPlainRequestArrivesDuringProcessing_KeepsBackoffProgression()

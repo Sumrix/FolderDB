@@ -99,8 +99,7 @@ public class FolderStore : IFolderStore
     ///
     /// -or-
     ///
-    /// A factory configured in <paramref name="options"/> or on <paramref name="collectionDefinitions"/> returned
-    /// <see langword="null"/>.
+    /// A factory configured on <paramref name="collectionDefinitions"/> returned <see langword="null"/>.
     ///
     /// -or-
     ///
@@ -182,8 +181,7 @@ public class FolderStore : IFolderStore
     ///
     /// -or-
     ///
-    /// A factory configured in <paramref name="options"/> or on <paramref name="definition"/> returned
-    /// <see langword="null"/>.
+    /// A factory configured on <paramref name="definition"/> returned <see langword="null"/>.
     ///
     /// -or-
     ///
@@ -269,8 +267,7 @@ public class FolderStore : IFolderStore
     ///
     /// -or-
     ///
-    /// A factory configured in <paramref name="options"/> or on <paramref name="definition"/> returned
-    /// <see langword="null"/>.
+    /// A factory configured on <paramref name="definition"/> returned <see langword="null"/>.
     ///
     /// -or-
     ///

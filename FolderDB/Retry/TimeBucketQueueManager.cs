@@ -15,15 +15,15 @@ namespace FolderDB.Retry;
 /// in the same interval as a single batch.
 /// </summary>
 /// <remarks>
-/// Time is divided into intervals of <see cref="TimeBucketQueueManagerOptions.Interval"/>, and an item
-/// runs on an interval boundary rather than at an exact moment. The items of one interval are
-/// processed one after another, never in parallel. An item that asks for another attempt is delayed
-/// further each time, up to <see cref="TimeBucketQueueManagerOptions.MaxRetryIntervals"/> intervals.
+/// Time is divided into intervals as long as the first delay, and an item runs on an interval
+/// boundary rather than at an exact moment. The items of one interval are processed one after another,
+/// never in parallel. An item that asks for another attempt waits the delay of its next attempt,
+/// rounded to the nearest whole number of intervals; after the last delay, every further attempt
+/// waits the last one.
 /// </remarks>
 public class TimeBucketQueueManager : IRetryScheduler<string>
 {
-    private readonly int _maxRetryIntervals;
-    private readonly double _backoffMultiplier;
+    private readonly long[] _delayIntervals;
     private readonly CancellationTokenSource _lifetimeCts;
     private readonly CancellationToken _cancellationToken;
     private readonly ConcurrentDictionary<string, QueueItem> _items;
@@ -33,16 +33,17 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
     /// <summary>
     /// Initializes a new instance of the <see cref="TimeBucketQueueManager"/> class.
     /// </summary>
-    /// <param name="options">Options to control the behavior of the scheduler.</param>
+    /// <param name="delays">
+    /// The delays before the runs of a scheduled item. The first delay is the base interval, and the
+    /// last one repeats until the item completes.
+    /// </param>
     /// <param name="loggerFactory">The factory used to create the scheduler's loggers.</param>
     public TimeBucketQueueManager(
-        TimeBucketQueueManagerOptions? options = null,
+        IReadOnlyList<TimeSpan> delays,
         ILoggerFactory? loggerFactory = null)
     {
-        options ??= new TimeBucketQueueManagerOptions();
-
-        _maxRetryIntervals = options.MaxRetryIntervals;
-        _backoffMultiplier = options.BackoffMultiplier;
+        var intervalMs = Math.Max(1, (int)delays[0].TotalMilliseconds);
+        _delayIntervals = ToIntervals(delays, intervalMs);
         _lifetimeCts = new CancellationTokenSource();
         _cancellationToken = _lifetimeCts.Token;
         var effectiveLoggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
@@ -54,7 +55,7 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
 
         // We pass our processing logic as the callback
         _scheduler = new BucketTimerScheduler(
-            (int)options.Interval.TotalMilliseconds,
+            intervalMs,
             ProcessBatchAsync,
             effectiveLoggerFactory.CreateLogger<BucketTimerScheduler>());
     }
@@ -75,7 +76,7 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
                 Value = value,
                 Processor = processor,
                 TargetBucket = targetBucket,
-                CurrentBackoff = 1,
+                Attempt = 0,
                 MinBackoffRequested = minBackoff
             },
             (_, existing) => minBackoff
@@ -84,7 +85,7 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
                     Value = existing.Value,
                     Processor = existing.Processor,
                     TargetBucket = targetBucket,
-                    CurrentBackoff = 1,
+                    Attempt = 0,
                     MinBackoffRequested = true
                 }
                 : existing);
@@ -144,24 +145,13 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
 
     private void ScheduleRetry(QueueItem item, bool resetBackoff)
     {
-        double backoff;
-        if (resetBackoff)
-        {
-            backoff = 1;
-        }
-        else
-        {
-            backoff = item.CurrentBackoff * _backoffMultiplier;
-            if (backoff > _maxRetryIntervals)
-            {
-                backoff = _maxRetryIntervals;
-            }
-        }
+        // The last delay repeats: an item that keeps failing stays at it.
+        var attempt = resetBackoff
+            ? 0
+            : Math.Min(item.Attempt + 1, _delayIntervals.Length - 1);
 
-        // The progression is kept fractional so that a multiplier below 2 still grows it, while the
-        // bucket it lands in is a whole interval, rounded away from the one already passed.
-        item.CurrentBackoff = backoff;
-        item.TargetBucket = _scheduler.GetCurrentBucket() + (long)Math.Ceiling(backoff);
+        item.Attempt = attempt;
+        item.TargetBucket = _scheduler.GetCurrentBucket() + _delayIntervals[attempt];
         item.MinBackoffRequested = false;
 
         // Processing took the item out of the dictionary, so a concurrent Enqueue could have put a
@@ -176,6 +166,26 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
 
         // Re-schedule in the engine
         _scheduler.Schedule(winner.TargetBucket);
+    }
+
+    // A delay is rounded to the nearest whole number of intervals, a half going up. One shorter
+    // than an interval is raised to it, and one longer than a day is shortened to a day.
+    internal static long[] ToIntervals(IReadOnlyList<TimeSpan> delays, int intervalMs)
+    {
+        var intervals = new long[delays.Count];
+
+        // The first delay is the interval itself, whatever was lost when it was cut to whole milliseconds.
+        intervals[0] = 1;
+
+        for (var i = 1; i < intervals.Length; i++)
+        {
+            var delayMs = Math.Min(delays[i].TotalMilliseconds, RetryDelaysHelper.MaxDelay.TotalMilliseconds);
+            intervals[i] = delayMs <= intervalMs
+                ? 1
+                : (long)Math.Round(delayMs / intervalMs, MidpointRounding.AwayFromZero);
+        }
+
+        return intervals;
     }
 
     public void Dispose()
@@ -202,7 +212,7 @@ public class TimeBucketQueueManager : IRetryScheduler<string>
         public required string Value { get; init; }
         public required Func<string, CancellationToken, Task<RetryDecision>> Processor { get; init; }
         public required long TargetBucket { get; set; }
-        public required double CurrentBackoff { get; set; }
+        public required int Attempt { get; set; }
         public bool MinBackoffRequested { get; set; }
     }
 }

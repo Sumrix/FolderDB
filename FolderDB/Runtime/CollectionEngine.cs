@@ -85,7 +85,6 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
         CollectionDefinition<TKey, TRecord, TProjection> definition,
         IFileStore storage,
         IRetryScheduler<string> retryScheduler,
-        Dictionary<FileOperation, IEnumerable<TimeSpan>?>? retry,
         StoreOptions options,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
@@ -103,7 +102,11 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
             storage);
         var operationStore = new RecordStore<TKey, TRecord>(
             collectionContext.RecordCodec,
-            new RetryFileStore(storage, retry, loggerFactory));
+            new RetryFileStore(
+                storage,
+                options.OperationRetryDelays.Read,
+                options.OperationRetryDelays.Write,
+                loggerFactory));
         var index = await CreateIndexAsync(indexFilePath, definition, collectionContext, options, loggerFactory, cancellationToken);
 
         var fileReconciler = new FileReconciler<TKey, TRecord, TProjection>(

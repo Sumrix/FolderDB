@@ -10,7 +10,6 @@ using FolderDB.Indexing;
 using FolderDB.Indexing.Reconciliation;
 using FolderDB.Indexing.State;
 using FolderDB.Infrastructure.Exceptions;
-using FolderDB.Retry;
 using FolderDB.Runtime;
 using FolderDB.Tests.TestSupport;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -411,13 +410,8 @@ public class StoreOperationProcessorTests
                 recordCodec,
                 new RetryFileStore(
                     fileStore,
-                    new Dictionary<FileOperation, IEnumerable<TimeSpan>?>
-                    {
-                        [FileOperation.Read] = TimeSpanSequence.Constant(TimeSpan.Zero, 1),
-                        [FileOperation.Write] = TimeSpanSequence.Constant(TimeSpan.Zero, 4),
-                        [FileOperation.Delete] = TimeSpanSequence.Constant(TimeSpan.Zero, 4)
-                    },
-                    null));
+                    readDelays: [TimeSpan.Zero],
+                    writeDelays: [TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero]));
             var fileReconciler = new FileReconciler<string, TestRecord, string>(
                 context,
                 fileStore,
