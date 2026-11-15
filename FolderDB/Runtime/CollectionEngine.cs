@@ -62,10 +62,9 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
             _index.Records, TryCreateProjection);
     }
 
-    /// <exception cref="ArgumentNullException"><paramref name="loggerFactory"/> is null.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="storeContext"/> is null.</exception>
     /// <exception cref="InvalidOperationException">
-    /// A factory configured on <paramref name="definition"/> or in <paramref name="options"/>
-    /// returned null.
+    /// A factory configured on <paramref name="definition"/> returned null.
     ///
     /// -or-
     ///
@@ -83,13 +82,14 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
         string collectionPath,
         string indexFilePath,
         CollectionDefinition<TKey, TRecord, TProjection> definition,
-        IFileStore storage,
-        IRetryScheduler<string> retryScheduler,
-        StoreOptions options,
-        ILoggerFactory loggerFactory,
+        StoreContext storeContext,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(storeContext);
+
+        var storage = storeContext.FileStore;
+        var retryScheduler = storeContext.RetryScheduler;
+        var loggerFactory = storeContext.LoggerFactory.CreateCollectionScopedLoggerFactory(definition.Name);
 
         var log = loggerFactory.CreateLogger<CollectionEngine<TKey, TRecord, TProjection>>();
         using var _ = log.BeginMethodScope();
@@ -104,10 +104,10 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
             collectionContext.RecordCodec,
             new RetryFileStore(
                 storage,
-                options.OperationRetryDelays.Read,
-                options.OperationRetryDelays.Write,
+                storeContext.ReadRetryDelays,
+                storeContext.WriteRetryDelays,
                 loggerFactory));
-        var index = await CreateIndexAsync(indexFilePath, definition, collectionContext, options, loggerFactory, cancellationToken);
+        var index = await CreateIndexAsync(indexFilePath, definition, collectionContext, storeContext, loggerFactory, cancellationToken);
 
         var fileReconciler = new FileReconciler<TKey, TRecord, TProjection>(
             collectionContext,
@@ -127,7 +127,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
             collectionContext,
             index,
             operationStore,
-            options.MaxFileNameReserveAttempts,
+            storeContext.MaxFileNameReserveAttempts,
             fileReconciler,
             (path, minBackoff) => retryScheduler.Enqueue(path, fileReconciler.ReconcileAsync, minBackoff),
             loggerFactory.CreateLogger<StoreOperationProcessor<TKey, TRecord, TProjection>>());
@@ -195,7 +195,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
         string indexFilePath,
         CollectionDefinition<TKey, TRecord, TProjection> definition,
         CollectionContext<TKey, TRecord, TProjection> collectionContext,
-        StoreOptions options,
+        StoreContext storeContext,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -215,7 +215,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
                 indexFilePath,
                 collectionContext,
                 persistence,
-                options.IndexAutoSaveInterval,
+                storeContext.IndexAutoSaveInterval,
                 loggerFactory,
                 autoSaveEnabled: true,
                 cancellationToken);
@@ -225,7 +225,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
             var ctx = new RecordScopedIndexEngineContext<TKey, TRecord, TProjection>
             {
                 Collection = collectionContext,
-                StoreOptions = options,
+                Store = storeContext,
                 IndexFilePath = indexFilePath,
                 CancellationToken = cancellationToken
             };

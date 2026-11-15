@@ -15,7 +15,7 @@ namespace FolderDB;
 /// </summary>
 public class FolderStore : IFolderStore
 {
-    private readonly StoreResources _resources;
+    private readonly StoreContext _context;
     private readonly IReadOnlyDictionary<Type, ICollectionEngine> _collectionEnginesByType;
     private readonly IReadOnlyDictionary<string, ICollectionEngine> _collectionEnginesByDirectoryName;
     private readonly PathWatcher _rootPathWatcher;
@@ -29,13 +29,13 @@ public class FolderStore : IFolderStore
     // Making it public would allow creating one in a non-running state.
     internal FolderStore(
         string rootPath,
-        StoreResources resources,
+        StoreContext context,
         IReadOnlyDictionary<Type, ICollectionEngine> collectionEnginesByType,
         IReadOnlyDictionary<string, ICollectionEngine> collectionEnginesByDirectoryName,
         PathWatcher rootPathWatcher)
     {
         RootPath = rootPath;
-        _resources = resources;
+        _context = context;
         _collectionEnginesByType = collectionEnginesByType;
         _collectionEnginesByDirectoryName = collectionEnginesByDirectoryName;
         _rootPathWatcher = rootPathWatcher;
@@ -371,7 +371,7 @@ public class FolderStore : IFolderStore
         foreach (var collectionEngine in _collectionEnginesByType.Values)
             await DisposeHelper.SafeDispose(collectionEngine);
 
-        _resources.Dispose();
+        _context.Dispose();
 
         GC.SuppressFinalize(this);
     }

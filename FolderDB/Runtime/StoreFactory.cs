@@ -19,12 +19,11 @@ internal sealed class StoreFactory
     private const string IndexDirectoryName = ".indices";
 
     private readonly string _indexDirectoryPath;
-    private readonly StoreOptions _options;
-    private readonly StoreResources _resources;
+    private readonly StoreContext _context;
 
     private string RootPath { get; }
 
-    private ILoggerFactory LoggerFactory => _options.LoggerFactory ?? NullLoggerFactory.Instance;
+    private ILoggerFactory LoggerFactory => _context.LoggerFactory;
 
     /// <exception cref="ArgumentNullException"><paramref name="rootPath"/> is null.</exception>
     /// <exception cref="InvalidOperationException">A configured factory returned null.</exception>
@@ -40,8 +39,7 @@ internal sealed class StoreFactory
 
         RootPath = PathHelper.NormalizePath(rootPath);
         _indexDirectoryPath = Path.Combine(RootPath, IndexDirectoryName);
-        _options = options;
-        _resources = CreateResources(options);
+        _context = CreateContext(options);
     }
 
     /// <exception cref="ArgumentNullException">
@@ -151,7 +149,7 @@ internal sealed class StoreFactory
 
             var store = new FolderStore(
                 factory.RootPath,
-                factory._resources,
+                factory._context,
                 enginesByType,
                 enginesByDirectoryName,
                 rootPathWatcher);
@@ -167,7 +165,7 @@ internal sealed class StoreFactory
             DisposeHelper.SafeDispose(rootPathWatcher);
             foreach (var collectionEngine in enginesByType.Values)
                 await DisposeHelper.SafeDispose(collectionEngine);
-            factory._resources.Dispose();
+            factory._context.Dispose();
 
             throw;
         }
@@ -234,7 +232,7 @@ internal sealed class StoreFactory
 
             var collection = new FolderIndexedRecordCollection<TKey, TRecord, TProjection>(
                 factory.RootPath,
-                factory._resources,
+                factory._context,
                 collectionEngine);
 
             logger.LogDebug("Opened: path=\"{RootPath}\"", factory.RootPath);
@@ -246,7 +244,7 @@ internal sealed class StoreFactory
             logger.LogError(ex, "Failed to open: path=\"{RootPath}\"", factory.RootPath);
 
             await DisposeHelper.SafeDispose(collectionEngine);
-            factory._resources.Dispose();
+            factory._context.Dispose();
 
             throw;
         }
@@ -326,10 +324,7 @@ internal sealed class StoreFactory
         var collectionEngine = await collectionDefinition.StartEngineAsync(
             collectionPath,
             indexFilePath,
-            _resources.FileStore,
-            _resources.RetryScheduler,
-            _options,
-            LoggerFactory.CreateCollectionScopedLoggerFactory(collectionDefinition.Name),
+            _context,
             cancellationToken);
 
         if (collectionEngine is null)
@@ -375,20 +370,24 @@ internal sealed class StoreFactory
             collectionPath,
             indexFilePath,
             collectionDefinition,
-            _resources.FileStore,
-            _resources.RetryScheduler,
-            _options,
-            LoggerFactory.CreateCollectionScopedLoggerFactory(collectionDefinition.Name),
+            _context,
             cancellationToken);
     }
 
-    private static StoreResources CreateResources(StoreOptions options)
+    private static StoreContext CreateContext(StoreOptions options)
     {
         var loggerFactory = options.LoggerFactory ?? NullLoggerFactory.Instance;
-        var fileStore = options.FileStore ?? new FileStore(loggerFactory.CreateLogger<FileStore>());
-        var retryScheduler = new TimeBucketQueueManager(options.ReconciliationRetryDelays, loggerFactory);
 
-        return new StoreResources(fileStore, retryScheduler);
+        return new StoreContext
+        {
+            LoggerFactory = loggerFactory,
+            FileStore = options.FileStore ?? new FileStore(loggerFactory.CreateLogger<FileStore>()),
+            RetryScheduler = new TimeBucketQueueManager(options.ReconciliationRetryDelays, loggerFactory),
+            ReadRetryDelays = options.OperationRetryDelays.Read,
+            WriteRetryDelays = options.OperationRetryDelays.Write,
+            MaxFileNameReserveAttempts = options.MaxFileNameReserveAttempts,
+            IndexAutoSaveInterval = options.IndexAutoSaveInterval
+        };
     }
 
     private sealed class NullEngine : ICollectionEngine

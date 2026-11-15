@@ -1,7 +1,6 @@
 using System.Threading;
 using FolderDB.Runtime;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FolderDB.Building;
 
@@ -10,9 +9,9 @@ public sealed class RecordScopedIndexEngineContext<TKey, TRecord, TProjection>
     where TKey : notnull
 {
     public required CollectionContext<TKey, TRecord, TProjection> Collection { get; init; }
-    public required StoreOptions StoreOptions { get; init; }
+    public required StoreContext Store { get; init; }
     public required string IndexFilePath { get; init; }
     public required CancellationToken CancellationToken { get; init; }
 
-    public ILoggerFactory LoggerFactory => StoreOptions.LoggerFactory ?? NullLoggerFactory.Instance;
+    public ILoggerFactory LoggerFactory => Store.LoggerFactory;
 }

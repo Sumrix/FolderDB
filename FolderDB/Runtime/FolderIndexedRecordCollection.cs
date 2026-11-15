@@ -11,7 +11,7 @@ public class FolderIndexedRecordCollection<TKey, TRecord, TProjection> :
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
 {
-    private readonly StoreResources _resources;
+    private readonly StoreContext _context;
     private readonly CollectionEngine<TKey, TRecord, TProjection> _engine;
 
     private int _disposed;
@@ -38,11 +38,11 @@ public class FolderIndexedRecordCollection<TKey, TRecord, TProjection> :
 
     internal FolderIndexedRecordCollection(
         string rootPath,
-        StoreResources resources,
+        StoreContext context,
         CollectionEngine<TKey, TRecord, TProjection> engine)
     {
         RootPath = rootPath;
-        _resources = resources;
+        _context = context;
         _engine = engine;
     }
 
@@ -101,7 +101,7 @@ public class FolderIndexedRecordCollection<TKey, TRecord, TProjection> :
 
         await DisposeHelper.SafeDispose(_engine);
 
-        _resources.Dispose();
+        _context.Dispose();
 
         GC.SuppressFinalize(this);
     }

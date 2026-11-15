@@ -11,6 +11,7 @@ using FolderDB.Indexing;
 using FolderDB.Indexing.Persistence;
 using FolderDB.Indexing.State;
 using FolderDB.Infrastructure.Concurrency;
+using FolderDB.Retry;
 using FolderDB.Runtime;
 using FolderDB.Tests.TestSupport;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -141,10 +142,11 @@ public class CollectionDefinitionBuilderTests
             .Build();
 
         var collection = CreateCollectionContext(blueprint);
+        using var store = CreateStoreContext();
         var indexContext = new RecordScopedIndexEngineContext<string, TestRecord, string>
         {
             Collection = collection,
-            StoreOptions = CreateStoreOptions(),
+            Store = store,
             IndexFilePath = "index.bin",
             CancellationToken = CancellationToken.None,
         };
@@ -153,11 +155,19 @@ public class CollectionDefinitionBuilderTests
         Assert.Same(expectedEngine, await blueprint.IndexEngineFactory!(indexContext));
     }
 
-    private static StoreOptions CreateStoreOptions()
+    private static StoreContext CreateStoreContext()
     {
-        return new StoreOptions
+        var options = new StoreOptions();
+
+        return new StoreContext
         {
-            LoggerFactory = NullLoggerFactory.Instance
+            LoggerFactory = NullLoggerFactory.Instance,
+            FileStore = new FileStore(),
+            RetryScheduler = new TimeBucketQueueManager(options.ReconciliationRetryDelays),
+            ReadRetryDelays = options.OperationRetryDelays.Read,
+            WriteRetryDelays = options.OperationRetryDelays.Write,
+            MaxFileNameReserveAttempts = options.MaxFileNameReserveAttempts,
+            IndexAutoSaveInterval = options.IndexAutoSaveInterval
         };
     }
 

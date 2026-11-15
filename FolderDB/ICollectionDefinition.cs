@@ -1,10 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using FolderDB.FileStorage;
-using FolderDB.Retry;
 using FolderDB.Runtime;
-using Microsoft.Extensions.Logging;
 
 namespace FolderDB;
 
@@ -35,10 +32,9 @@ public interface ICollectionDefinition
     /// </summary>
     /// <param name="collectionPath">The directory that holds the collection.</param>
     /// <param name="indexFilePath">The file the collection index is persisted to.</param>
-    /// <param name="fileStore">The file store the collection reads and writes records through.</param>
-    /// <param name="retryScheduler">The scheduler that queues reconciliation retries.</param>
-    /// <param name="options">Options to control the behavior of the store.</param>
-    /// <param name="loggerFactory">The logger factory scoped to this collection.</param>
+    /// <param name="storeContext">
+    /// The values and services of the store that the collection is started in.
+    /// </param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
     /// <returns>
     /// A task that returns the asynchronous start operation, which wraps the started engine.
@@ -47,9 +43,6 @@ public interface ICollectionDefinition
     Task<ICollectionEngine> StartEngineAsync(
         string collectionPath,
         string indexFilePath,
-        IFileStore fileStore,
-        IRetryScheduler<string> retryScheduler,
-        StoreOptions options,
-        ILoggerFactory loggerFactory,
+        StoreContext storeContext,
         CancellationToken cancellationToken = default);
 }
