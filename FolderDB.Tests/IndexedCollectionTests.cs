@@ -1,5 +1,6 @@
 using System.IO;
 using System.Threading.Tasks;
+using FolderDB.Encoding;
 using FolderDB.Tests.TestSupport;
 
 namespace FolderDB.Tests;
@@ -28,9 +29,11 @@ public sealed class IndexedCollectionTests
         }
     }
 
-    private static CollectionDefinition<string, PlainTestRecord, NoProjection> CreateCollectionDefinition()
+    private static CollectionDefinition<string, PlainTestRecord> CreateCollectionDefinition()
     {
-        return CollectionDefinitionBuilder.CreateDefault<string, PlainTestRecord>(
-            jsonOptions: TestsJsonContext.Default.Options);
+        return new CollectionDefinition<string, PlainTestRecord>(
+            new RecordCodec<string, PlainTestRecord>(
+                new RecordSchemaBuilder().WithoutVersioning(TestsJsonContext.Default.PlainTestRecord)),
+            TestsJsonContext.Default.String);
     }
 }

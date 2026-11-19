@@ -16,7 +16,9 @@ internal static class TestCollectionContext
         Func<TRecord, IEnumerable<string>> generateFileNames,
         IEqualityComparer<TKey> keyEqualityComparer,
         IComparer<TKey> keyComparer,
-        IRecordCodec<TKey, TRecord> codec)
+        IRecordCodec<TKey, TRecord> codec,
+        JsonTypeInfo<TKey> keyTypeInfo,
+        JsonTypeInfo<TProjection> projectionTypeInfo)
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
@@ -28,6 +30,8 @@ internal static class TestCollectionContext
             FileNameGenerator = generateFileNames,
             CreateProjection = createProjection,
             RecordCodec = codec,
+            KeyTypeInfo = keyTypeInfo,
+            ProjectionTypeInfo = projectionTypeInfo,
         };
     }
 

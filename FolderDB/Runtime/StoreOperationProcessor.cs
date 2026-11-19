@@ -10,6 +10,7 @@ using FolderDB.Indexing.Reconciliation;
 using FolderDB.Indexing.Scopes;
 using FolderDB.Indexing.State;
 using FolderDB.Infrastructure.Exceptions;
+using FolderDB.Infrastructure.Helpers;
 using FolderDB.Infrastructure.Logging;
 using FolderDB.Retry;
 using Microsoft.Extensions.Logging;
@@ -22,14 +23,12 @@ internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
     CollectionContext<TKey, TRecord, TProjection> context,
     CollectionIndex<TKey, TRecord, TProjection> index,
     RecordStore<TKey, TRecord> store,
-    int maxFileNameReserveAttempts,
     FileReconciler<TKey, TRecord, TProjection> fileReconciler,
     Action<string, bool> requestFileReconcile,
     ILogger<StoreOperationProcessor<TKey, TRecord, TProjection>>? logger)
     where TRecord : class, IRecord<TKey>
     where TKey : notnull
 {
-    private readonly int _maxFileNameReserveAttempts = Math.Max(1, maxFileNameReserveAttempts);
     private readonly ILogger<StoreOperationProcessor<TKey, TRecord, TProjection>> _logger =
         logger ?? NullLogger<StoreOperationProcessor<TKey, TRecord, TProjection>>.Instance;
 
@@ -59,7 +58,7 @@ internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionDefinition{TKey, TRecord, TProjection}.FileNames"/> threw.
     ///
     /// -or-
     ///
@@ -72,8 +71,7 @@ internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
     ///
     /// -or-
     ///
-    /// No free file name was found within
-    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// The generator repeated a candidate.
     /// </exception>
     /// <exception cref="FileOperationException">
     /// The record could not be encoded.
@@ -164,7 +162,7 @@ internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionDefinition{TKey, TRecord, TProjection}.FileNames"/> threw.
     ///
     /// -or-
     ///
@@ -177,8 +175,7 @@ internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
     ///
     /// -or-
     ///
-    /// No free file name was found within
-    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// The generator repeated a candidate.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public async Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default)
@@ -291,7 +288,7 @@ internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
     }
 
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionDefinition{TKey, TRecord, TProjection}.FileNames"/> threw.
     ///
     /// -or-
     ///
@@ -304,8 +301,7 @@ internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
     ///
     /// -or-
     ///
-    /// No free file name was found within
-    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// The generator repeated a candidate.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     private async Task<OperationResult> InsertAsync(
@@ -313,8 +309,9 @@ internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
         TRecord record,
         CancellationToken cancellationToken)
     {
+        HashSet<string>? triedFileNames = null;
         using var iterator = CreateFileNameIterator(record);
-        for (var attempt = 0; attempt < _maxFileNameReserveAttempts; attempt++)
+        for (var attempt = 1; ; attempt++)
         {
             if (!MoveNextFileNameCandidate(record.Id, iterator))
             {
@@ -324,6 +321,14 @@ internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
             var reservedFileName = BuildFileName(record.Id, iterator.Current);
             if (!recordScope.TryReserveFileName(reservedFileName))
             {
+                triedFileNames ??= new HashSet<string>(PathHelper.OSDependedPathComparer);
+                if (!triedFileNames.Add(reservedFileName))
+                {
+                    throw new FileNameGenerationException(
+                        $"Unable to reserve a file name for record id '{record.Id}': the generator repeated " +
+                        $"the file name '{reservedFileName}' at candidate {attempt}.");
+                }
+
                 continue;
             }
 
@@ -367,13 +372,10 @@ internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
             _logger.LogDebug("Upsert applied to reserved file: id={Id} file=\"{File}\"", record.Id, reservedFileName);
             return new OperationResult(null, reservedFileName);
         }
-
-        throw new FileNameGenerationException(
-            $"Unable to reserve a file name for record id '{record.Id}' after {_maxFileNameReserveAttempts} attempts.");
     }
 
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw while
+    /// The configured <see cref="CollectionDefinition{TKey, TRecord, TProjection}.FileNames"/> threw while
     /// starting generation.
     /// </exception>
     private IEnumerator<string> CreateFileNameIterator(TRecord record)
@@ -390,7 +392,7 @@ internal class StoreOperationProcessor<TKey, TRecord, TProjection>(
     }
 
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw while
+    /// The configured <see cref="CollectionDefinition{TKey, TRecord, TProjection}.FileNames"/> threw while
     /// producing the next candidate.
     /// </exception>
     private static bool MoveNextFileNameCandidate(TKey id, IEnumerator<string> iterator)

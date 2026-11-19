@@ -388,7 +388,9 @@ public class FileReconcilerTests
                 static record => [record.Id],
                 StringComparer.OrdinalIgnoreCase,
                 StringComparer.OrdinalIgnoreCase,
-                codec);
+                codec,
+                TestsJsonContext.Default.String,
+                TestsJsonContext.Default.String);
             var persistence = TestCollectionContext.CreateJsonIndexPersistence(
                 TestsJsonContext.Default.String,
                 TestsJsonContext.Default.String,

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FolderDB.FileStorage;
 using FolderDB.Indexing;
+using FolderDB.Indexing.Persistence;
 using FolderDB.Indexing.Reconciliation;
 using FolderDB.Indexing.State;
 using FolderDB.Infrastructure.Collections;
@@ -13,7 +14,6 @@ using FolderDB.Infrastructure.Exceptions;
 using FolderDB.Infrastructure.Helpers;
 using FolderDB.Infrastructure.Logging;
 using FolderDB.Infrastructure.Watching;
-using FolderDB.Building;
 using FolderDB.Retry;
 using Microsoft.Extensions.Logging;
 
@@ -62,14 +62,8 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
             _index.Records, TryCreateProjection);
     }
 
-    /// <exception cref="ArgumentNullException"><paramref name="storeContext"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">
-    /// A factory configured on <paramref name="definition"/> returned null.
-    ///
-    /// -or-
-    ///
-    /// <paramref name="definition"/> provides neither an index persistence nor an index engine
-    /// factory.
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="definition"/> or <paramref name="storeContext"/> is null.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     /// <remarks>
@@ -85,18 +79,20 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
         StoreContext storeContext,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(storeContext);
 
         var storage = storeContext.FileStore;
         var retryScheduler = storeContext.RetryScheduler;
-        var loggerFactory = storeContext.LoggerFactory.CreateCollectionScopedLoggerFactory(definition.Name);
+        var name = definition.Name ?? typeof(TRecord).Name;
+        var loggerFactory = storeContext.LoggerFactory.CreateCollectionScopedLoggerFactory(name);
 
         var log = loggerFactory.CreateLogger<CollectionEngine<TKey, TRecord, TProjection>>();
         using var _ = log.BeginMethodScope();
 
         Directory.CreateDirectory(collectionPath);
 
-        var collectionContext = CreateCollectionContext(definition, loggerFactory);
+        var collectionContext = CreateCollectionContext(name, definition);
         var rawStore = new RecordStore<TKey, TRecord>(
             collectionContext.RecordCodec,
             storage);
@@ -107,7 +103,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
                 storeContext.ReadRetryDelays,
                 storeContext.WriteRetryDelays,
                 loggerFactory));
-        var index = await CreateIndexAsync(indexFilePath, definition, collectionContext, storeContext, loggerFactory, cancellationToken);
+        var index = await CreateIndexAsync(indexFilePath, collectionContext, storeContext, loggerFactory, cancellationToken);
 
         var fileReconciler = new FileReconciler<TKey, TRecord, TProjection>(
             collectionContext,
@@ -127,7 +123,6 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
             collectionContext,
             index,
             operationStore,
-            storeContext.MaxFileNameReserveAttempts,
             fileReconciler,
             (path, minBackoff) => retryScheduler.Enqueue(path, fileReconciler.ReconcileAsync, minBackoff),
             loggerFactory.CreateLogger<StoreOperationProcessor<TKey, TRecord, TProjection>>());
@@ -153,94 +148,45 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
         return collectionEngine;
     }
 
-    /// <exception cref="InvalidOperationException">
-    /// The record codec factory configured on the definition returned null.
-    /// </exception>
-    private static CollectionContext<TKey, TRecord, TProjection> CreateCollectionContext(
-        CollectionDefinition<TKey, TRecord, TProjection> definition,
-        ILoggerFactory loggerFactory)
+    internal static CollectionContext<TKey, TRecord, TProjection> CreateCollectionContext(
+        string name,
+        CollectionDefinition<TKey, TRecord, TProjection> definition)
     {
-        var recordContext = new RecordCodecContext(loggerFactory);
-        var recordCodec = definition.RecordCodecFactory(recordContext);
-        if (recordCodec is null)
-        {
-            throw new InvalidOperationException(
-                $"'{definition.Name}' collection's defined {nameof(definition.RecordCodecFactory)} does not provide record codec.");
-        }
-
         return new CollectionContext<TKey, TRecord, TProjection>
         {
-            Name = definition.Name,
-            KeyComparer = definition.KeyComparer,
-            KeyEqualityComparer = definition.KeyEqualityComparer,
-            FileNameGenerator = definition.FileNameGenerator,
-            CreateProjection = definition.CreateProjection,
-            RecordCodec = recordCodec,
+            Name = name,
+            KeyComparer = definition.KeyComparer ?? Comparer<TKey>.Default,
+            KeyEqualityComparer = definition.KeyEqualityComparer ?? EqualityComparer<TKey>.Default,
+            FileNameGenerator = definition.FileNames ?? DefaultFileNaming,
+            CreateProjection = definition.Projection,
+            RecordCodec = definition.Codec,
+            KeyTypeInfo = definition.KeyTypeInfo,
+            ProjectionTypeInfo = definition.ProjectionTypeInfo,
         };
     }
 
-    /// <exception cref="InvalidOperationException">
-    /// The index persistence factory configured on the definition returned null.
-    ///
-    /// -or-
-    ///
-    /// The index engine factory configured on the definition returned null.
-    ///
-    /// -or-
-    ///
-    /// The definition provides neither of the two factories.
-    /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     private static async Task<CollectionIndex<TKey, TRecord, TProjection>> CreateIndexAsync(
         string indexFilePath,
-        CollectionDefinition<TKey, TRecord, TProjection> definition,
         CollectionContext<TKey, TRecord, TProjection> collectionContext,
         StoreContext storeContext,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        IRecordScopedIndexEngine<TKey, TRecord, TProjection> engine;
+        var persistence = new JsonCollectionIndexPersistence<TKey, TProjection>(
+            collectionContext.KeyTypeInfo,
+            collectionContext.ProjectionTypeInfo,
+            collectionContext.KeyEqualityComparer,
+            loggerFactory.CreateLogger<JsonCollectionIndexPersistence<TKey, TProjection>>());
 
-        if (definition.IndexPersistenceFactory is not null)
-        {
-            var ctx = new CollectionIndexPersistenceContext<TKey, TRecord, TProjection>(collectionContext, loggerFactory);
-            var persistence = definition.IndexPersistenceFactory(ctx);
-            if (persistence is null)
-            {
-                throw new InvalidOperationException(
-                    $"'{collectionContext.Name}' collection's defined {nameof(definition.IndexPersistenceFactory)} does not provide index persistence.");
-            }
-
-            engine = await RecordScopedIndexEngine<TKey, TRecord, TProjection>.StartAsync(
-                indexFilePath,
-                collectionContext,
-                persistence,
-                storeContext.IndexAutoSaveInterval,
-                loggerFactory,
-                autoSaveEnabled: true,
-                cancellationToken);
-        }
-        else if (definition.IndexEngineFactory is not null)
-        {
-            var ctx = new RecordScopedIndexEngineContext<TKey, TRecord, TProjection>
-            {
-                Collection = collectionContext,
-                Store = storeContext,
-                IndexFilePath = indexFilePath,
-                CancellationToken = cancellationToken
-            };
-            engine = await definition.IndexEngineFactory(ctx);
-            if (engine is null)
-            {
-                throw new InvalidOperationException(
-                    $"'{collectionContext.Name}' collection's defined {nameof(definition.IndexEngineFactory)} does not provide index engine.");
-            }
-        }
-        else
-        {
-            throw new InvalidOperationException(
-                $"'{collectionContext.Name}' collection definition must provide either {nameof(definition.IndexPersistenceFactory)} or {nameof(definition.IndexEngineFactory)} to create the index engine.");
-        }
+        var engine = await RecordScopedIndexEngine<TKey, TRecord, TProjection>.StartAsync(
+            indexFilePath,
+            collectionContext,
+            persistence,
+            storeContext.IndexAutoSaveInterval,
+            loggerFactory,
+            autoSaveEnabled: true,
+            cancellationToken);
 
         return new CollectionIndex<TKey, TRecord, TProjection>(engine, collectionContext);
     }
@@ -265,7 +211,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionDefinition{TKey, TRecord, TProjection}.FileNames"/> threw.
     ///
     /// -or-
     ///
@@ -278,8 +224,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
     ///
     /// -or-
     ///
-    /// No free file name was found within
-    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// The generator repeated a candidate.
     /// </exception>
     /// <exception cref="FileOperationException">
     /// The record could not be encoded.
@@ -309,7 +254,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionDefinition{TKey, TRecord, TProjection}.FileNames"/> threw.
     ///
     /// -or-
     ///
@@ -322,8 +267,7 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
     ///
     /// -or-
     ///
-    /// No free file name was found within
-    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// The generator repeated a candidate.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default) => _processor.TryUpsertAsync(record, cancellationToken);
@@ -392,5 +336,17 @@ public class CollectionEngine<TKey, TRecord, TProjection> :
 
         file = null;
         return false;
+    }
+
+    private static IEnumerable<string> DefaultFileNaming(TRecord record)
+    {
+        var fileName = record.Id?.ToString();
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            throw new InvalidOperationException(
+                $"Generated file name for record with id '{record.Id}' is null or whitespace.");
+        }
+
+        yield return fileName;
     }
 }

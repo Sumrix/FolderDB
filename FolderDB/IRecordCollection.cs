@@ -50,7 +50,7 @@ public interface IRecordCollection<in TKey, TRecord>
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionDefinition{TKey, TRecord, TProjection}.FileNames"/> threw.
     ///
     /// -or-
     ///
@@ -63,8 +63,7 @@ public interface IRecordCollection<in TKey, TRecord>
     ///
     /// -or-
     ///
-    /// No free file name was found within
-    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// The generator repeated a candidate.
     /// </exception>
     /// <exception cref="FileOperationException">
     /// The record could not be encoded.
@@ -128,7 +127,7 @@ public interface IRecordCollection<in TKey, TRecord>
     /// <see langword="null"/>.
     /// </exception>
     /// <exception cref="FileNameGenerationException">
-    /// The configured <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/> threw.
+    /// The configured <see cref="CollectionDefinition{TKey, TRecord, TProjection}.FileNames"/> threw.
     ///
     /// -or-
     ///
@@ -141,8 +140,7 @@ public interface IRecordCollection<in TKey, TRecord>
     ///
     /// -or-
     ///
-    /// No free file name was found within
-    /// <see cref="StoreOptions.MaxFileNameReserveAttempts"/> attempts.
+    /// The generator repeated a candidate.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     Task<OperationResult> TryUpsertAsync(TRecord record, CancellationToken cancellationToken = default);

@@ -23,7 +23,7 @@ Clone the repository and reference the FolderDB project directly. A NuGet packag
 ```csharp
 using FolderDB;
 
-var users = CollectionDefinitionBuilder.CreateDefault<string, User>();
+var users = new CollectionDefinition<string, User>();
 
 await using var store = await FolderStore.OpenAsync(
     path: "data",

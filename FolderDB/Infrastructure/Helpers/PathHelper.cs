@@ -8,7 +8,7 @@ public static class PathHelper
     public static readonly StringComparer OSDependedPathComparer =
         OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
-    private static readonly char[] InvalidChars = Path.GetInvalidFileNameChars();
+    private static readonly char[] _invalidChars = Path.GetInvalidFileNameChars();
 
     public static string SanitizeFileName(string name)
     {
@@ -29,7 +29,7 @@ public static class PathHelper
             for (; i >= 0; i--)
             {
                 char c = original[i];
-                span[i] = InvalidChars.AsSpan().Contains(c) ? '_' : c;
+                span[i] = _invalidChars.AsSpan().Contains(c) ? '_' : c;
             }
         });
     }

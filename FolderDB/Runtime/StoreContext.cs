@@ -14,7 +14,6 @@ public sealed class StoreContext : IDisposable
     public required IRetryScheduler<string> RetryScheduler { get; init; }
     public required IReadOnlyList<TimeSpan> ReadRetryDelays { get; init; }
     public required IReadOnlyList<TimeSpan> WriteRetryDelays { get; init; }
-    public required int MaxFileNameReserveAttempts { get; init; }
     public required TimeSpan IndexAutoSaveInterval { get; init; }
 
     public void Dispose()

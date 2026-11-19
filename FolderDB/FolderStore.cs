@@ -95,15 +95,7 @@ public class FolderStore : IFolderStore
     /// <paramref name="path"/> contains a colon character (:) that is not part of a drive label ("C:\").
     /// </exception>
     /// <exception cref="InvalidOperationException">
-    /// <paramref name="collectionDefinitions"/> contains a definition with a <see langword="null"/> value.
-    ///
-    /// -or-
-    ///
-    /// A factory configured on <paramref name="collectionDefinitions"/> returned <see langword="null"/>.
-    ///
-    /// -or-
-    ///
-    /// A definition provides neither an index persistence nor an index engine factory.
+    /// A definition in <paramref name="collectionDefinitions"/> returned no collection engine.
     /// </exception>
     /// <exception cref="IOException">
     /// A directory to create is a file.
@@ -176,17 +168,6 @@ public class FolderStore : IFolderStore
     /// <exception cref="NotSupportedException">
     /// <paramref name="path"/> contains a colon character (:) that is not part of a drive label ("C:\").
     /// </exception>
-    /// <exception cref="InvalidOperationException">
-    /// <paramref name="definition"/> contains a <see langword="null"/> value.
-    ///
-    /// -or-
-    ///
-    /// A factory configured on <paramref name="definition"/> returned <see langword="null"/>.
-    ///
-    /// -or-
-    ///
-    /// <paramref name="definition"/> provides neither an index persistence nor an index engine factory.
-    /// </exception>
     /// <exception cref="IOException">
     /// A directory to create is a file.
     ///
@@ -208,7 +189,7 @@ public class FolderStore : IFolderStore
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     public static async Task<IFolderRecordCollection<TKey, TRecord>> OpenCollectionAsync<TKey, TRecord>(
         string path,
-        CollectionDefinition<TKey, TRecord, NoProjection> definition,
+        CollectionDefinition<TKey, TRecord> definition,
         StoreOptions? options = null,
         CancellationToken cancellationToken = default)
         where TRecord : class, IRecord<TKey>
@@ -261,17 +242,6 @@ public class FolderStore : IFolderStore
     /// <exception cref="SecurityException">The caller does not have the required permissions.</exception>
     /// <exception cref="NotSupportedException">
     /// <paramref name="path"/> contains a colon character (:) that is not part of a drive label ("C:\").
-    /// </exception>
-    /// <exception cref="InvalidOperationException">
-    /// <paramref name="definition"/> contains a <see langword="null"/> value.
-    ///
-    /// -or-
-    ///
-    /// A factory configured on <paramref name="definition"/> returned <see langword="null"/>.
-    ///
-    /// -or-
-    ///
-    /// <paramref name="definition"/> provides neither an index persistence nor an index engine factory.
     /// </exception>
     /// <exception cref="IOException">
     /// A directory to create is a file.

@@ -70,7 +70,9 @@ internal sealed class ReconcilerHarness : IAsyncDisposable
             static record => [record.Id],
             StringComparer.Ordinal,
             StringComparer.Ordinal,
-            codec);
+            codec,
+            TestsJsonContext.Default.String,
+            TestsJsonContext.Default.String);
 
         var indexEngine = await RecordScopedIndexEngine<string, TestRecord, string>.StartAsync(
             indexPath,

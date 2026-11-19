@@ -26,7 +26,6 @@ internal sealed class StoreFactory
     private ILoggerFactory LoggerFactory => _context.LoggerFactory;
 
     /// <exception cref="ArgumentNullException"><paramref name="rootPath"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">A configured factory returned null.</exception>
     /// <remarks>
     /// Also exceptions from:
     /// <see cref="Path.GetFullPath(string)"/>.
@@ -54,16 +53,7 @@ internal sealed class StoreFactory
     /// definitions that collide by name or by record type.
     /// </exception>
     /// <exception cref="InvalidOperationException">
-    /// <paramref name="collectionDefinitions"/> contains a definition with a <see langword="null"/> value.
-    ///
-    /// -or-
-    ///
-    /// A factory configured in <paramref name="options"/> or on <paramref name="collectionDefinitions"/> returned
-    /// <see langword="null"/>.
-    ///
-    /// -or-
-    ///
-    /// A definition provides neither an index persistence nor an index engine factory.
+    /// A definition in <paramref name="collectionDefinitions"/> returned no collection engine.
     /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     /// <remarks>
@@ -177,18 +167,6 @@ internal sealed class StoreFactory
     /// <exception cref="ArgumentException">
     /// <paramref name="definition"/> has an invalid name.
     /// </exception>
-    /// <exception cref="InvalidOperationException">
-    /// <paramref name="definition"/> contains a <see langword="null"/> value.
-    ///
-    /// -or-
-    ///
-    /// A factory configured in <paramref name="options"/> or on <paramref name="definition"/> returned
-    /// <see langword="null"/>.
-    ///
-    /// -or-
-    ///
-    /// <paramref name="definition"/> provides neither an index persistence nor an index engine factory.
-    /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     /// <remarks>
     /// Also exceptions from:
@@ -251,27 +229,18 @@ internal sealed class StoreFactory
     }
 
     /// <exception cref="ArgumentException">
-    /// The definition returned a null or empty name.
-    ///
-    /// -or-
-    ///
     /// The definition returned a name that sanitizes to the reserved index directory name.
     /// </exception>
     private static string GetCollectionDirectoryName(ICollectionDefinition collectionDefinition, string paramName)
     {
-        if (string.IsNullOrEmpty(collectionDefinition.Name))
-        {
-            throw new ArgumentException(
-                $"The definition '{collectionDefinition.GetType().FullName}' returned a null or empty collection name.",
-                paramName);
-        }
+        var name = collectionDefinition.Name ?? collectionDefinition.RecordType.Name;
 
-        var directoryName = PathHelper.SanitizeFileName(collectionDefinition.Name);
+        var directoryName = PathHelper.SanitizeFileName(name);
 
         if (PathHelper.OSDependedPathComparer.Equals(directoryName, IndexDirectoryName))
         {
             throw new ArgumentException(
-                $"The collection name '{collectionDefinition.Name}' collides with the reserved index directory '{IndexDirectoryName}'.",
+                $"The collection name '{name}' collides with the reserved index directory '{IndexDirectoryName}'.",
                 paramName);
         }
 
@@ -293,21 +262,7 @@ internal sealed class StoreFactory
         return Path.Combine(_indexDirectoryPath, $"{directoryName}.index.json");
     }
 
-    /// <exception cref="InvalidOperationException">
-    /// The definition returned no engine.
-    ///
-    /// -or-
-    ///
-    /// The definition contains a null value.
-    ///
-    /// -or-
-    ///
-    /// A factory configured on the definition or in the options returned null.
-    ///
-    /// -or-
-    ///
-    /// The definition provides neither an index persistence nor an index engine factory.
-    /// </exception>
+    /// <exception cref="InvalidOperationException">The definition returned no engine.</exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     /// <remarks>
     /// Also exceptions from:
@@ -336,17 +291,6 @@ internal sealed class StoreFactory
         return collectionEngine;
     }
 
-    /// <exception cref="InvalidOperationException">
-    /// The definition contains a null value.
-    ///
-    /// -or-
-    ///
-    /// A factory configured on the definition or in the options returned null.
-    ///
-    /// -or-
-    ///
-    /// The definition provides neither an index persistence nor an index engine factory.
-    /// </exception>
     /// <exception cref="OperationCanceledException">The cancellation token was canceled.</exception>
     /// <remarks>
     /// Also exceptions from:
@@ -362,10 +306,6 @@ internal sealed class StoreFactory
         where TRecord : class, IRecord<TKey>
         where TKey : notnull
     {
-        // The non-generic overload gets this from CollectionDefinition.StartEngineAsync; this one reaches
-        // the engine directly, so it has to run the check itself.
-        collectionDefinition.Validate();
-
         return CollectionEngine<TKey, TRecord, TProjection>.StartAsync(
             collectionPath,
             indexFilePath,
@@ -385,7 +325,6 @@ internal sealed class StoreFactory
             RetryScheduler = new TimeBucketQueueManager(options.ReconciliationRetryDelays, loggerFactory),
             ReadRetryDelays = options.OperationRetryDelays.Read,
             WriteRetryDelays = options.OperationRetryDelays.Write,
-            MaxFileNameReserveAttempts = options.MaxFileNameReserveAttempts,
             IndexAutoSaveInterval = options.IndexAutoSaveInterval
         };
     }

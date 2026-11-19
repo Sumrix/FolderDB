@@ -4,7 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using FolderDB.Building;
+using FolderDB.Encoding;
 using FolderDB.FileStorage;
 using FolderDB.Indexing;
 using FolderDB.Indexing.Reconciliation;
@@ -18,13 +18,15 @@ namespace FolderDB.Tests;
 
 public class StoreOperationProcessorTests
 {
-    private static readonly CollectionDefinition<string, TestRecord, string> _definition = CollectionDefinitionBuilder
-        .Create<string, TestRecord>()
-        .WithRecordSchema(builder => builder
-            .StartWith(1, TestsJsonContext.Default.TestRecord))
-        .WithProjection(record => record.Value)
-        .UseJsonIndexPersistence(TestsJsonContext.Default.String, TestsJsonContext.Default.String)
-        .Build();
+    private static CollectionDefinition<string, TestRecord, string> CreateDefinition() => new(
+        new RecordCodec<string, TestRecord>(new RecordSchemaBuilder()
+            .StartWith(1, TestsJsonContext.Default.TestRecord)
+            .Build()),
+        TestsJsonContext.Default.String,
+        TestsJsonContext.Default.String)
+    {
+        Projection = record => record.Value
+    };
 
     [Fact]
     public async Task TryGetAsync_WhenRecordIsMissing_ReturnsSuccessWithNullRecord()
@@ -225,14 +227,8 @@ public class StoreOperationProcessorTests
     [Fact]
     public async Task TryUpsertAsync_WhenLazyFileNameGeneratorFails_ThrowsFileNameGenerationException()
     {
-        var definition = CollectionDefinitionBuilder
-            .Create<string, TestRecord>()
-            .WithFileNaming(ThrowingFileNames)
-            .WithRecordSchema(builder => builder
-                .StartWith(1, TestsJsonContext.Default.TestRecord))
-            .WithProjection(record => record.Value)
-            .UseJsonIndexPersistence(TestsJsonContext.Default.String, TestsJsonContext.Default.String)
-            .Build();
+        var definition = CreateDefinition();
+        definition.FileNames = ThrowingFileNames;
         await using var harness = await Harness.CreateAsync(definition);
 
         var ex = await Assert.ThrowsAsync<FileNameGenerationException>(
@@ -249,6 +245,59 @@ public class StoreOperationProcessorTests
         static string Throw()
         {
             throw new NotSupportedException("lazy failure");
+        }
+    }
+
+    [Fact(Timeout = 10_000)]
+    public async Task TryUpsertAsync_WhenInfiniteGeneratorHasManyTakenNames_ReservesNextFreeName()
+    {
+        var definition = CreateDefinition();
+        definition.FileNames = InfiniteFileNames;
+        await using var harness = await Harness.CreateAsync(definition);
+
+        // The eighth record skips seven taken names, more than any fixed small limit would allow.
+        for (var i = 1; i <= 8; i++)
+        {
+            var result = await harness.Processor.TryUpsertAsync(
+                new TestRecord($"id-{i}", 1, "value"),
+                TestContext.Current.CancellationToken);
+
+            Assert.True(result.IsSuccess);
+        }
+
+        static IEnumerable<string> InfiniteFileNames(TestRecord _)
+        {
+            yield return "same";
+            for (var i = 1; ; i++)
+            {
+                yield return $"same ({i})";
+            }
+        }
+    }
+
+    [Fact(Timeout = 10_000)]
+    public async Task TryUpsertAsync_WhenGeneratorRepeatsTakenName_ThrowsFileNameGenerationException()
+    {
+        var definition = CreateDefinition();
+        definition.FileNames = RepeatingFileNames;
+        await using var harness = await Harness.CreateAsync(definition);
+
+        var first = await harness.Processor.TryUpsertAsync(
+            new TestRecord("id-1", 1, "value"),
+            TestContext.Current.CancellationToken);
+        Assert.True(first.IsSuccess);
+
+        await Assert.ThrowsAsync<FileNameGenerationException>(
+            () => harness.Processor.TryUpsertAsync(new TestRecord("id-2", 1, "value"), TestContext.Current.CancellationToken));
+
+        await harness.AssertHasSingleRecordAsync("id-1");
+
+        static IEnumerable<string> RepeatingFileNames(TestRecord _)
+        {
+            while (true)
+            {
+                yield return "same";
+            }
         }
     }
 
@@ -379,23 +428,17 @@ public class StoreOperationProcessorTests
 
         public static async Task<Harness> CreateAsync(CollectionDefinition<string, TestRecord, string>? definition = null)
         {
-            definition ??= _definition;
+            definition ??= CreateDefinition();
             var rootPath = Directory.CreateTempSubdirectory().FullName;
             var collectionPath = Path.Combine(rootPath, "collection");
             var indexPath = Path.Combine(rootPath, "index-state.json");
             Directory.CreateDirectory(collectionPath);
-            var recordCodec = definition.RecordCodecFactory(new RecordCodecContext(NullLoggerFactory.Instance));
-            var context = new CollectionContext<string, TestRecord, string>
-            {
-                Name = definition.Name,
-                KeyComparer = definition.KeyComparer,
-                KeyEqualityComparer = definition.KeyEqualityComparer,
-                FileNameGenerator = definition.FileNameGenerator,
-                CreateProjection = definition.CreateProjection,
-                RecordCodec = recordCodec,
-            };
-            var persistence = definition.IndexPersistenceFactory!(
-                new CollectionIndexPersistenceContext<string, TestRecord, string>(context, NullLoggerFactory.Instance));
+            var context = CollectionEngine<string, TestRecord, string>.CreateCollectionContext(nameof(TestRecord), definition);
+            var recordCodec = context.RecordCodec;
+            var persistence = TestCollectionContext.CreateJsonIndexPersistence(
+                context.KeyTypeInfo,
+                context.ProjectionTypeInfo,
+                context.KeyEqualityComparer);
 
             var indexEngine = await RecordScopedIndexEngine<string, TestRecord, string>.StartAsync(
                 indexPath,
@@ -423,7 +466,6 @@ public class StoreOperationProcessorTests
                 context,
                 index,
                 store,
-                maxFileNameReserveAttempts: 5,
                 fileReconciler,
                 (path, minBackoff) => reconcileRequests.Add((path, minBackoff)),
                 logger: null);

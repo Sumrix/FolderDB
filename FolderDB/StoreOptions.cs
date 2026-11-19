@@ -11,7 +11,6 @@ namespace FolderDB;
 /// </summary>
 public sealed class StoreOptions
 {
-    private int _maxFileNameReserveAttempts = 5;
     private TimeSpan _indexAutoSaveInterval = TimeSpan.FromSeconds(10);
     private static readonly IReadOnlyList<TimeSpan> _defaultReconciliationDelays = [
         TimeSpan.FromMilliseconds(100),
@@ -30,26 +29,6 @@ public sealed class StoreOptions
     /// logged.
     /// </returns>
     public ILoggerFactory? LoggerFactory { get; set; }
-
-    /// <summary>
-    /// Gets or sets the maximum number of file names an upsert tries before it fails to store a
-    /// record.
-    /// </summary>
-    /// <remarks>
-    /// Each attempt takes the next candidate name from
-    /// <see cref="CollectionOptions{TKey, TRecord}.FileNameGenerator"/>.
-    /// </remarks>
-    /// <returns>The maximum number of file names. The default is 5.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">The value is less than 1.</exception>
-    public int MaxFileNameReserveAttempts
-    {
-        get => _maxFileNameReserveAttempts;
-        set
-        {
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value);
-            _maxFileNameReserveAttempts = value;
-        }
-    }
 
     /// <summary>
     /// Gets or sets the time a change to a collection's in-memory index waits before the index
