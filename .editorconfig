@@ -3,3 +3,26 @@ root = true
 [*]
 end_of_line = crlf
 charset = utf-8
+
+[*.cs]
+# Private fields, static ones included, are _camelCase.
+dotnet_naming_rule.private_fields_should_be_underscore_camel_case.symbols = private_fields
+dotnet_naming_rule.private_fields_should_be_underscore_camel_case.style = underscore_camel_case
+dotnet_naming_rule.private_fields_should_be_underscore_camel_case.severity = warning
+
+# Private constants are left out of the rule above; the const modifier makes this rule more specific.
+dotnet_naming_rule.private_constants_should_be_pascal_case.symbols = private_constants
+dotnet_naming_rule.private_constants_should_be_pascal_case.style = pascal_case
+dotnet_naming_rule.private_constants_should_be_pascal_case.severity = silent
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+
+dotnet_naming_symbols.private_constants.applicable_kinds = field
+dotnet_naming_symbols.private_constants.applicable_accessibilities = private
+dotnet_naming_symbols.private_constants.required_modifiers = const
+
+dotnet_naming_style.underscore_camel_case.capitalization = camel_case
+dotnet_naming_style.underscore_camel_case.required_prefix = _
+
+dotnet_naming_style.pascal_case.capitalization = pascal_case
